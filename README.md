@@ -3,22 +3,6 @@ Architecture lecture in Binghamton University with Prof. Ghose
 
 honestly, I am a little behind the class process
 
-# CS520 Arch
-password: KOoLCHiPs!18
-I like this style
-
-page. 29
-master-slaver latch
-
-## class 1 week 3
-I feel like I am missing in the notebook
-
-sign-extension: 10bits to 32 bits, fill the extended bits with sign bit value
-
-## class 1 week 4
-it's realy fast course
-I don't even know what's him talking about
-
 # class note study
 cann't follow the lecture, what a sad story
 
@@ -77,3 +61,49 @@ TODO: be to continue, page.66
 ## data dependencies,page.81
 
 ## detecting data dependencies,page.88
+
+following is the second part of class notes
+## data flow graphs, page.92
+
+## coping with data dependencies, page.93
+
+## simple interlocking for pipelines with in-order issuing mechanism, page.94
+
+## data forwarding, page.96
+
+## dynamic instruction scheduling, page.100
+
+## terminology related to Dynamic Instruction scheduling, page.101
+
+## register renaming: preamble, page.102
+
+## register renaming, page.103
+
+## register renaming adapted for APEX, page.106
+
+## Forwarding register value using the register address as a "tag", page.117
+
+## alterenative implementation of register renaming, page.118
+
+# CS520 Arch
+password: KOoLCHiPs!18
+I like this style
+
+page. 29
+master-slaver latch
+
+## class 1 week 3
+I feel like I am missing in the notebook
+
+sign-extension: 10bits to 32 bits, fill the extended bits with sign bit value
+
+## class 1 week 4
+it's realy fast course
+I don't even know what's him talking about
+
+## class 1 week 5
+
+## class 1 week 6
+
+## class 2 week 6
+full dependence??
