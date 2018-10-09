@@ -64,10 +64,27 @@ TODO: be to continue, page.66
 
 following is the second part of class notes
 ## data flow graphs, page.92
+TODO: what's the TSF and R1 data dependence there??
 
 ## coping with data dependencies, page.93
+table of content
+hardware techniques
+    Simple interlocking for in-order machines
+    Data forwarding
+    Dynamic Instruction Scheduling
+    - register renaming (most prevalent)
+    - CDC 6600 Scoreboarding (historical)
+    - Tomasulo's "algorithm" (historical - similarities with register renaming)
+    Decoupled execute - acccess mechanism
+    multithreading
+software techniques
+    software interlocking
+    software pipelining
 
 ## simple interlocking for pipelines with in-order issuing mechanism, page.94
+TODO: picture, status bit array(2 read ports), should be 3 read ports??
+TODO: condition b ensures anti- and output- dependence ?? how does it work??
+TODO: how  handles mutiple FUs and out-of-order writes back ??
 
 ## data forwarding, page.96
 
@@ -80,10 +97,26 @@ following is the second part of class notes
 ## register renaming, page.103
 
 ## register renaming adapted for APEX, page.106
+TODO: don't understand the graph, why two output??
 
 ## Forwarding register value using the register address as a "tag", page.117
 
 ## alterenative implementation of register renaming, page.118
+
+
+## the software interlocking algorithm(continued), page.154
+TODO: I5 and I6 is output dependence, page.159 ??
+
+## software pipelining: another software interlocking algorithm, page. 162
+TODO: to be continue, page.164
+
+## using multithreading to avoid interlocking delays, page. 168
+
+## back to Dynamic scheduling: the LOAD/STORE Queue, page.170
+
+## Dispatch and Issue components for a centralized IQ, page.173
+
+## interrupts in pipelined CPUs: the problem, page.175
 
 # CS520 Arch
 password: KOoLCHiPs!18
@@ -107,3 +140,5 @@ I don't even know what's him talking about
 
 ## class 2 week 6
 full dependence??
+
+## class 2 week 7
