@@ -98,14 +98,26 @@ TODO: how  handles mutiple FUs and out-of-order writes back ??
 
 ## register renaming adapted for APEX, page.106
 TODO: don't understand the graph, why two output??
+TODO: what's the difference between register renaming and Tomasulo's algorithm, page.116??
 
 ## Forwarding register value using the register address as a "tag", page.117
 
 ## alterenative implementation of register renaming, page.118
+Most modern pipelined processors use renaming and associative tag matching with a centralized IQ or distributed IQs (reservation stations).
 
+## handling Dependencies over condition codes in Register Renaming, page.123
+TODO: to be continue
+
+## obtaining operands in a Dunamically Scheduled processor: choices, page.124
+
+## the CDC 6600 Scoreboarding Mechanism, page.125
+
+## Tomasulo's algorithm, page.135
+
+## handling Dependencies over condition Code in Tomasulo's Technique, page.152
 
 ## the software interlocking algorithm(continued), page.154
-TODO: I5 and I6 is output dependence, page.159 ??
+I5 and I6 is output dependence, page.159 ?: STORE <src1> <src2> literal
 
 ## software pipelining: another software interlocking algorithm, page. 162
 TODO: to be continue, page.164
