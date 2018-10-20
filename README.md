@@ -29,6 +29,7 @@ cann't follow the lecture, what a sad story
 ## number of pipeline stage: what's optimum?, page.50
 
 ## de-couple pipelines: making pipeline sections independent of each other, page.51
+TODO: ski
 
 ## a fundamental result, page.52
 TODO: ?? don't understand
@@ -36,6 +37,7 @@ TODO: ?? don't understand
 ## the impact of pipeline bottlenecks, page.53
 
 ## avoid pipeline bottlenecks: replication vs. segmentation, page.54
+TODO: ski
 
 ## improve the thruput of uni-function, Non-linear function pipelines, page.55
 
@@ -47,7 +49,6 @@ TODO: ?? don't understand
 
 ## recap: the APEX pipeline - some noteworthy features, page.64
 
-TODO: be to continue, page.66
 ## Enhancing Machine Parallelism: Multiple Function Units, page.66
 
 ## enhancing machine parallelism: pipelined function units, page.71
@@ -57,12 +58,12 @@ TODO: be to continue, page.66
 ## terminology related to instruction scheduling, page.79
 
 ## instruction wait states in out-of-order machines, page.80
+TODO: ski
 
 ## data dependencies,page.81
 
 ## detecting data dependencies,page.88
 
-following is the second part of class notes
 ## data flow graphs, page.92
 TODO: what's the TSF and R1 data dependence there??
 
@@ -84,7 +85,7 @@ software techniques
 ## simple interlocking for pipelines with in-order issuing mechanism, page.94
 TODO: picture, status bit array(2 read ports), should be 3 read ports??
 TODO: condition b ensures anti- and output- dependence ?? how does it work??
-TODO: how  handles mutiple FUs and out-of-order writes back ??
+TODO: how handles mutiple FUs and out-of-order writes back ??
 
 ## data forwarding, page.96
 
@@ -97,22 +98,44 @@ TODO: how  handles mutiple FUs and out-of-order writes back ??
 ## register renaming, page.103
 
 ## register renaming adapted for APEX, page.106
-TODO: don't understand the graph, why two output??
-TODO: what's the difference between register renaming and Tomasulo's algorithm, page.116??
+
+don't understand the graph, why two output?: one for data, one for address
+
+TODO: why make Decode/rename1 and rename2/dispatch ??
+
+what's the difference between register renaming and Tomasulo's algorithm, page.116?:
+Tomasulo's algorithm is one of mechinism to implement data forwarding
 
 ## Forwarding register value using the register address as a "tag", page.117
 
 ## alterenative implementation of register renaming, page.118
+Uses centralized Issue Queue (IQ) and associative tag matching
 Most modern pipelined processors use renaming and associative tag matching with a centralized IQ or distributed IQs (reservation stations).
 
 ## handling Dependencies over condition codes in Register Renaming, page.123
-TODO: to be continue
 
-## obtaining operands in a Dunamically Scheduled processor: choices, page.124
+## obtaining operands in a Dynamically Scheduled processor: choices, page.124
+TODO: not really understand
 
 ## the CDC 6600 Scoreboarding Mechanism, page.125
+page.127, why not include status of destination register?: because destination register is busy when has a instruction in pipeline
+because instruction doesn't dispatch when source registers are busy
+    dispatch rule: output dependences
+    start up rule: flow dependences, page.128
+    completion rule: anti-dependences, page.129
+example of CDC 6600 scoreboard mechanism, page.131
+potential improvement, page.134
+TODO: Allow operands to be transferred to FUs in a piecemeal fashion?? how to improve??
+
 
 ## Tomasulo's algorithm, page.135
+CDB: common data bus
+source tags, defined in page.138
+### forwarding using the source tag, page.141
+### instruction dispatching rule, page.142
+### handling VFU completions, page.144
+
+TODO: draw the Gantt chart, page.150 ??
 
 ## handling Dependencies over condition Code in Tomasulo's Technique, page.152
 
@@ -125,10 +148,25 @@ TODO: to be continue, page.164
 ## using multithreading to avoid interlocking delays, page. 168
 
 ## back to Dynamic scheduling: the LOAD/STORE Queue, page.170
+TODO: last point, why forward value to be stored, why not address of memory??
 
 ## Dispatch and Issue components for a centralized IQ, page.173
 
+## handling interurpts in out-of-order execution pipelines, page.174
+
 ## interrupts in pipelined CPUs: the problem, page.175
+
+## interrupts in pipelined CPUs: some terminology, page.177
+
+## handling interrupts in pipelined - overivew, page.178
+
+## Recorder Buffers, page.181
+
+## Aside: implementing the ROB, page.193
+
+## constructing the precise state in software, page.194
+
+## real machines: implementations of register renaming, page.197
 
 # CS520 Arch
 password: KOoLCHiPs!18
