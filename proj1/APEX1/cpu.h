@@ -9,14 +9,40 @@
  *  State University of New York, Binghamton
  */
 
+/* wenchen */
+#include<limits.h>
+
+/* wenchen regster valid bits */
+#define NUM_REGS 33 // 32+1, since regs[0] is not used
+#define VALID 1
+#define UNVALID 0
+
+/* unused value in instruction struct */
+#define UNUSED_REG_INDEX 0
+#define UNUSED_IMM INT_MAX
+
+/* convert pc to code index */
+#define PC_START_INDEX 4000
+#define BYTES_PER_INS 4
+
+/* the state of stage in cpu */
+#define STALLED 1
+#define UNSTALLED 0
+#define BUSY 1
+#define UNBUSY 0
+
+/* Set this flag to 1 to enable debug messages */
+#define ENABLE_DEBUG_MESSAGES 1
+
+
 enum
 {
-  F,
+  F = 0,
   DRF,
   EX,
   MEM,
   WB,
-  NUM_STAGES
+  NUM_STAGES // what's this?: number of stage, smart way
 };
 
 /* Format of an APEX instruction  */
@@ -40,7 +66,7 @@ typedef struct CPU_Stage
   int imm;		    // Literal Value
   int rs1_value;	// Source-1 Register Value
   int rs2_value;	// Source-2 Register Value
-  int buffer;		// Latch to hold some value
+  int buffer;		// Latch to hold some value, like result of EX
   int mem_address;	// Computed Memory Address
   int busy;		    // Flag to indicate, stage is performing some action
   int stalled;		// Flag to indicate, stage is stalled
@@ -49,28 +75,15 @@ typedef struct CPU_Stage
 /* Model of APEX CPU */
 typedef struct APEX_CPU
 {
-  /* Clock cycles elasped */
-  int clock;
-
-  /* Current program counter */
-  int pc;
-
-  /* Integer register file */
-  int regs[32];
-  int regs_valid[32];
-
-  /* Array of 5 CPU_stage */
-  CPU_Stage stage[5];
-
-  /* Code Memory where instructions are stored */
-  APEX_Instruction* code_memory;
+  int clock;  /* Clock cycles elasped */
+  int pc; /* Current program counter */
+  int regs[NUM_REGS]; /* Integer register file */ // wenchen: make it 33 and regs[0] is not used
+  int regs_valid[NUM_REGS];
+  CPU_Stage stage[NUM_STAGES]; /* Array of 5 CPU_stage */
   int code_memory_size;
-
-  /* Data Memory */
-  int data_memory[4096];
-
-  /* Some stats */
-  int ins_completed;
+  APEX_Instruction* code_memory; /* Code Memory where instructions are stored */
+  int data_memory[4096]; /* Data Memory */
+  int ins_completed; /* Some stats */
 
 } APEX_CPU;
 

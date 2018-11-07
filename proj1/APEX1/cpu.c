@@ -12,14 +12,48 @@
 
 #include "cpu.h"
 
-/* Set this flag to 1 to enable debug messages */
-#define ENABLE_DEBUG_MESSAGES 1
+/* don't bother with these functions, lower level */
+  /* Converts the PC(4000 series) into
+   * array index for code memory
+   *
+   * Note : You are not supposed to edit this function
+   *
+   */
+  int
+    get_code_index(int pc)
+    {
+      return (pc - PC_START_INDEX) / BYTES_PER_INS;
+    }
+
+  static void
+    print_instruction(CPU_Stage* stage)
+    {
+      if (strcmp(stage->opcode, "STORE") == 0) {
+        printf(
+            "%s,R%d,R%d,#%d ", stage->opcode, stage->rs1, stage->rs2, stage->imm);
+      }
+
+      if (strcmp(stage->opcode, "MOVC") == 0) {
+        printf("%s,R%d,#%d ", stage->opcode, stage->rd, stage->imm);
+      }
+    }
+
+  /* Debug function which dumps the cpu stage
+   * content
+   *
+   * Note : You are not supposed to edit this function
+   *
+   */
+  static void
+    print_stage_content(char* name, CPU_Stage* stage)
+    {
+      printf("%-15s: pc(%d) ", name, stage->pc);
+      print_instruction(stage);
+      printf("\n");
+    }
 
 /*
  * This function creates and initializes APEX cpu.
- *
- * Note : You are free to edit this function according to your
- * 				implementation
  */
 APEX_CPU*
 APEX_cpu_init(const char* filename)
@@ -34,11 +68,12 @@ APEX_cpu_init(const char* filename)
   }
 
   /* Initialize PC, Registers and all pipeline stages */
-  cpu->pc = 4000;
-  memset(cpu->regs, 0, sizeof(int) * 32);
-  memset(cpu->regs_valid, 1, sizeof(int) * 32);
+  cpu->pc = PC_START_INDEX;
+  memset(cpu->regs, 0, sizeof(int) * NUM_REGS);
+  memset(cpu->regs_valid, UNVALID, sizeof(int) * NUM_REGS);
+  cpu->regs_valid[0] = VALID; // wenchen: regs[0] is always valid, works as zero register
   memset(cpu->stage, 0, sizeof(CPU_Stage) * NUM_STAGES);
-  memset(cpu->data_memory, 0, sizeof(int) * 4000);
+  memset(cpu->data_memory, 0, sizeof(int) * 4000); // TODO: wenchen: data_memory is 4096 ints
 
   /* Parse input file and create code memory */
   cpu->code_memory = create_code_memory(filename, &cpu->code_memory_size);
@@ -48,11 +83,18 @@ APEX_cpu_init(const char* filename)
     return NULL;
   }
 
+  /* Make all stages busy except Fetch stage, initally to start the pipeline */
+  for (int i = DRF; i < NUM_STAGES; ++i) {
+    cpu->stage[i].busy = BUSY;
+  }
+
   if (ENABLE_DEBUG_MESSAGES) {
-    fprintf(stderr,
+    // fprintf(stderr, // TODO: why stderr??
+    fprintf(stdout,
             "APEX_CPU : Initialized APEX CPU, loaded %d instructions\n",
             cpu->code_memory_size);
-    fprintf(stderr, "APEX_CPU : Printing Code Memory\n");
+    // fprintf(stderr, "APEX_CPU : Printing Code Memory\n");
+    fprintf(stdout, "APEX_CPU : Printing Code Memory\n");
     printf("%-9s %-9s %-9s %-9s %-9s\n", "opcode", "rd", "rs1", "rs2", "imm");
 
     for (int i = 0; i < cpu->code_memory_size; ++i) {
@@ -65,19 +107,11 @@ APEX_cpu_init(const char* filename)
     }
   }
 
-  /* Make all stages busy except Fetch stage, initally to start the pipeline */
-  for (int i = 1; i < NUM_STAGES; ++i) {
-    cpu->stage[i].busy = 1;
-  }
-
   return cpu;
 }
 
 /*
  * This function de-allocates APEX cpu.
- *
- * Note : You are free to edit this function according to your
- * 				implementation
  */
 void
 APEX_cpu_stop(APEX_CPU* cpu)
@@ -86,56 +120,17 @@ APEX_cpu_stop(APEX_CPU* cpu)
   free(cpu);
 }
 
-/* Converts the PC(4000 series) into
- * array index for code memory
- *
- * Note : You are not supposed to edit this function
- *
- */
-int
-get_code_index(int pc)
-{
-  return (pc - 4000) / 4;
-}
-
-static void
-print_instruction(CPU_Stage* stage)
-{
-  if (strcmp(stage->opcode, "STORE") == 0) {
-    printf(
-      "%s,R%d,R%d,#%d ", stage->opcode, stage->rs1, stage->rs2, stage->imm);
-  }
-
-  if (strcmp(stage->opcode, "MOVC") == 0) {
-    printf("%s,R%d,#%d ", stage->opcode, stage->rd, stage->imm);
-  }
-}
-
-/* Debug function which dumps the cpu stage
- * content
- *
- * Note : You are not supposed to edit this function
- *
- */
-static void
-print_stage_content(char* name, CPU_Stage* stage)
-{
-  printf("%-15s: pc(%d) ", name, stage->pc);
-  print_instruction(stage);
-  printf("\n");
-}
 
 /*
  *  Fetch Stage of APEX Pipeline
- *
- *  Note : You are free to edit this function according to your
- * 				 implementation
  */
 int
 fetch(APEX_CPU* cpu)
 {
   CPU_Stage* stage = &cpu->stage[F];
-  if (!stage->busy && !stage->stalled) {  
+  CPU_Stage* next_stage = &cpu->stage[DRF];
+
+  if (!stage->busy && !stage->stalled) {
     /* Store current PC in fetch latch */
     stage->pc = cpu->pc;
 
@@ -151,10 +146,11 @@ fetch(APEX_CPU* cpu)
     stage->rd = current_ins->rd;
 
     /* Update PC for next instruction */
-    cpu->pc += 4;
+    cpu->pc += BYTES_PER_INS;
 
     /* Copy data from fetch latch to decode latch*/
-    cpu->stage[DRF] = cpu->stage[F];
+    if(!next_stage->busy && !next_stage->stalled)
+      *next_stage = *stage;
 
     if (ENABLE_DEBUG_MESSAGES) {
       print_stage_content("Fetch", stage);
@@ -165,18 +161,30 @@ fetch(APEX_CPU* cpu)
 
 /*
  *  Decode Stage of APEX Pipeline
- *
- *  Note : You are free to edit this function according to your
- * 				 implementation
  */
 int
 decode(APEX_CPU* cpu)
 {
   CPU_Stage* stage = &cpu->stage[DRF];
+  CPU_Stage* next_stage = &cpu->stage[EX];
+
+  /* what if not valid?: stalled this stage */
+  if( !cpu->regs_valid[stage->rs1] ||
+      !cpu->regs_valid[stage->rs2] ||
+      !cpu->regs_valid[stage->rd]
+    ){
+    stage->stalled = STALLED;
+  }
+  else{
+    stage->stalled = UNSTALLED;
+  }
+
   if (!stage->busy && !stage->stalled) {
 
     /* Read data from register file for store */
     if (strcmp(stage->opcode, "STORE") == 0) {
+        stage->rs1_value = cpu->regs[stage->rs1];
+        stage->rs2_value = cpu->regs[stage->rs2];
     }
 
     /* No Register file read needed for MOVC */
@@ -184,7 +192,8 @@ decode(APEX_CPU* cpu)
     }
 
     /* Copy data from decode latch to execute latch*/
-    cpu->stage[EX] = cpu->stage[DRF];
+    if(!next_stage->busy && !next_stage->stalled)
+      *next_stage = *stage;
 
     if (ENABLE_DEBUG_MESSAGES) {
       print_stage_content("Decode/RF", stage);
@@ -195,26 +204,26 @@ decode(APEX_CPU* cpu)
 
 /*
  *  Execute Stage of APEX Pipeline
- *
- *  Note : You are free to edit this function according to your
- * 				 implementation
  */
 int
 execute(APEX_CPU* cpu)
 {
   CPU_Stage* stage = &cpu->stage[EX];
+  CPU_Stage* next_stage = &cpu->stage[MEM];
+  // TODO: stalled condition ??
   if (!stage->busy && !stage->stalled) {
 
-    /* Store */
     if (strcmp(stage->opcode, "STORE") == 0) {
+      stage->mem_address = stage->rs2_value + stage->imm; // TODO: assume it doesn't excess the boundary
     }
 
-    /* MOVC */
     if (strcmp(stage->opcode, "MOVC") == 0) {
+      // seems nothing to do with MOVC at EX stage
     }
 
     /* Copy data from Execute latch to Memory latch*/
-    cpu->stage[MEM] = cpu->stage[EX];
+    if(!next_stage->busy && !next_stage->stalled)
+      *next_stage = *stage;
 
     if (ENABLE_DEBUG_MESSAGES) {
       print_stage_content("Execute", stage);
@@ -225,26 +234,26 @@ execute(APEX_CPU* cpu)
 
 /*
  *  Memory Stage of APEX Pipeline
- *
- *  Note : You are free to edit this function according to your
- * 				 implementation
  */
 int
 memory(APEX_CPU* cpu)
 {
   CPU_Stage* stage = &cpu->stage[MEM];
+  CPU_Stage* next_stage = &cpu->stage[WB];
   if (!stage->busy && !stage->stalled) {
 
-    /* Store */
     if (strcmp(stage->opcode, "STORE") == 0) {
+      cpu->data_memory[stage->mem_address] = stage->rs1_value;
     }
 
-    /* MOVC */
     if (strcmp(stage->opcode, "MOVC") == 0) {
+      // seems nothing to do with MOVC at MEM stage
     }
 
     /* Copy data from decode latch to execute latch*/
-    cpu->stage[WB] = cpu->stage[MEM];
+    if(!next_stage->busy && !next_stage->stalled)
+      *next_stage = *stage;
+
 
     if (ENABLE_DEBUG_MESSAGES) {
       print_stage_content("Memory", stage);
@@ -255,9 +264,6 @@ memory(APEX_CPU* cpu)
 
 /*
  *  Writeback Stage of APEX Pipeline
- *
- *  Note : You are free to edit this function according to your
- * 				 implementation
  */
 int
 writeback(APEX_CPU* cpu)
@@ -265,9 +271,14 @@ writeback(APEX_CPU* cpu)
   CPU_Stage* stage = &cpu->stage[WB];
   if (!stage->busy && !stage->stalled) {
 
-    /* Update register file */
+    if (strcmp(stage->opcode, "STORE") == 0) {
+      // nothing to do with STORE at WB stage
+    }
+
     if (strcmp(stage->opcode, "MOVC") == 0) {
-      cpu->regs[stage->rd] = stage->buffer;
+      /* Update register file */
+      // cpu->regs[stage->rd] = stage->buffer; // TODO: why buffer
+      cpu->regs[stage->rd] = stage->imm;
     }
 
     cpu->ins_completed++;

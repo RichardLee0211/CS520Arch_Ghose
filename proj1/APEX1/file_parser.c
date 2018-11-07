@@ -52,10 +52,13 @@ create_APEX_instruction(APEX_Instruction* ins, char* buffer)
 
   if (strcmp(ins->opcode, "MOVC") == 0) {
     ins->rd = get_num_from_string(tokens[1]);
+    ins->rs1 = UNUSED_REG_INDEX;
+    ins->rs2 = UNUSED_REG_INDEX;
     ins->imm = get_num_from_string(tokens[2]);
   }
 
   if (strcmp(ins->opcode, "STORE") == 0) {
+    ins->rd = UNUSED_REG_INDEX;
     ins->rs1 = get_num_from_string(tokens[1]);
     ins->rs2 = get_num_from_string(tokens[2]);
     ins->imm = get_num_from_string(tokens[3]);
