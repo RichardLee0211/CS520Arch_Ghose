@@ -7,20 +7,15 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "cpu.h"
 
 int
 main(int argc, char const* argv[])
 {
-  if (argc < 2) {
-    fprintf(stderr, "APEX_Help : Usage %s <input_file> <-i>\n", argv[0]);
+  if (argc != 2) {
+    fprintf(stderr, "APEX_Help : Usage %s <input_file>\n", argv[0]);
     exit(1);
-  }
-
-  if(argc == 3 && strcmp(argv[2], "-i")==0){
-    enable_interactive=1;
   }
 
   APEX_CPU* cpu = APEX_cpu_init(argv[1]);

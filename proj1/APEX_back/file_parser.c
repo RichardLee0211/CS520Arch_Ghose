@@ -17,15 +17,13 @@
  * This function is related to parsing input file
  *
  * Note : You are not supposed to edit this function
- * but your code sucks
  */
 static int
 get_num_from_string(char* buffer)
 {
   char str[16];
   int j = 0;
-  for (int i = 0; buffer[i] != '\0'; ++i) {
-    if(buffer[i]<'0' || buffer[i]>'9') continue;
+  for (int i = 1; buffer[i] != '\0'; ++i) {
     str[j] = buffer[i];
     j++;
   }
@@ -52,49 +50,15 @@ create_APEX_instruction(APEX_Instruction* ins, char* buffer)
 
   strcpy(ins->opcode, tokens[0]);
 
-  /* MOVC RD #NUM */
   if (strcmp(ins->opcode, "MOVC") == 0) {
     ins->rd = get_num_from_string(tokens[1]);
-    ins->rs1 = UNUSED_REG_INDEX;
-    ins->rs2 = UNUSED_REG_INDEX;
     ins->imm = get_num_from_string(tokens[2]);
   }
 
-  /* STORE R1 R2 #NUM */
-  else if (strcmp(ins->opcode, "STORE") == 0 ){
-    ins->rd = UNUSED_REG_INDEX;
+  if (strcmp(ins->opcode, "STORE") == 0) {
     ins->rs1 = get_num_from_string(tokens[1]);
     ins->rs2 = get_num_from_string(tokens[2]);
     ins->imm = get_num_from_string(tokens[3]);
-  }
-  else if(strcmp(ins->opcode, "LOAD") == 0) {
-    ins->rd = get_num_from_string(tokens[1]);
-    ins->rs1 = UNUSED_REG_INDEX;
-    ins->rs2 = get_num_from_string(tokens[2]);
-    ins->imm = get_num_from_string(tokens[3]);
-  }
-
-  /* ADD RD R1 R2 */
-  else if (strcmp(ins->opcode, "ADD") == 0 ||
-      strcmp(ins->opcode, "SUB") == 0 ||
-      strcmp(ins->opcode, "AND") == 0 ||
-      strcmp(ins->opcode, "MUL") == 0 ||
-      strcmp(ins->opcode, "OR") == 0 ||
-      strcmp(ins->opcode, "EX-OR") == 0
-      ) {
-    ins->rd = get_num_from_string(tokens[1]);
-    ins->rs1 = get_num_from_string(tokens[2]);
-    ins->rs2 = get_num_from_string(tokens[3]);
-    ins->imm = UNUSED_IMM;
-  }
-
-  /* UNKNOWN instruction */
-  else{
-    strcpy(ins->opcode, "UNKNOWN");
-    ins->rd = UNUSED_REG_INDEX;
-    ins->rs1 = UNUSED_REG_INDEX;
-    ins->rs2 = UNUSED_REG_INDEX;
-    ins->imm = UNUSED_IMM;
   }
 
 }

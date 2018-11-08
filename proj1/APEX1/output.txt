@@ -88,29 +88,29 @@ Writeback      : pc(4024) MOVC,R7,#53
 Memory         : pc(4028) MOVC,R8,#54 
 Execute        : pc(4032) STORE,R1,R3,#10 
 Decode/RF      : pc(4036) STORE,R2,R3,#15 
-Fetch          : pc(4040) 
+Fetch          : pc(4040) NOP
 --------------------------------
 Clock Cycle #: 11
 --------------------------------
 Writeback      : pc(4028) MOVC,R8,#54 
 Memory         : pc(4032) STORE,R1,R3,#10 
 Execute        : pc(4036) STORE,R2,R3,#15 
-Decode/RF      : pc(4040) 
-Fetch          : pc(4044) 
+Decode/RF      : pc(4040) NOP
+Fetch          : pc(4044) NOP
 --------------------------------
 Clock Cycle #: 12
 --------------------------------
 Writeback      : pc(4032) STORE,R1,R3,#10 
 Memory         : pc(4036) STORE,R2,R3,#15 
-Execute        : pc(4040) 
-Decode/RF      : pc(4044) 
-Fetch          : pc(4048) 
+Execute        : pc(4040) NOP
+Decode/RF      : pc(4044) NOP
+Fetch          : pc(4048) NOP
 --------------------------------
 Clock Cycle #: 13
 --------------------------------
 Writeback      : pc(4036) STORE,R2,R3,#15 
-Memory         : pc(4040) 
-Execute        : pc(4044) 
-Decode/RF      : pc(4048) 
-Fetch          : pc(4052) 
+Memory         : pc(4040) NOP
+Execute        : pc(4044) NOP
+Decode/RF      : pc(4048) NOP
+Fetch          : pc(4052) NOP
 (apex) >> Simulation Complete
