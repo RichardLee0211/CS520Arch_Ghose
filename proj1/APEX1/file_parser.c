@@ -58,6 +58,7 @@ create_APEX_instruction(APEX_Instruction* ins, char* buffer)
     ins->rs1 = UNUSED_REG_INDEX;
     ins->rs2 = UNUSED_REG_INDEX;
     ins->imm = get_num_from_string(tokens[2]);
+    copyArray(ins->delay, default_delay, NUM_STAGES);
   }
 
   /* STORE R1 R2 #NUM */
@@ -66,19 +67,21 @@ create_APEX_instruction(APEX_Instruction* ins, char* buffer)
     ins->rs1 = get_num_from_string(tokens[1]);
     ins->rs2 = get_num_from_string(tokens[2]);
     ins->imm = get_num_from_string(tokens[3]);
+    copyArray(ins->delay, default_delay, NUM_STAGES);
   }
+  /* LOAD RD R2 #NUM3 */
   else if(strcmp(ins->opcode, "LOAD") == 0) {
     ins->rd = get_num_from_string(tokens[1]);
     ins->rs1 = UNUSED_REG_INDEX;
     ins->rs2 = get_num_from_string(tokens[2]);
     ins->imm = get_num_from_string(tokens[3]);
+    copyArray(ins->delay, default_delay, NUM_STAGES);
   }
 
-  /* ADD RD R1 R2 */
+  /* ADD RD R2 R3 */
   else if (strcmp(ins->opcode, "ADD") == 0 ||
       strcmp(ins->opcode, "SUB") == 0 ||
       strcmp(ins->opcode, "AND") == 0 ||
-      strcmp(ins->opcode, "MUL") == 0 ||
       strcmp(ins->opcode, "OR") == 0 ||
       strcmp(ins->opcode, "EX-OR") == 0
       ) {
@@ -86,6 +89,40 @@ create_APEX_instruction(APEX_Instruction* ins, char* buffer)
     ins->rs1 = get_num_from_string(tokens[2]);
     ins->rs2 = get_num_from_string(tokens[3]);
     ins->imm = UNUSED_IMM;
+    copyArray(ins->delay, default_delay, NUM_STAGES);
+  }
+
+  else if(strcmp(ins->opcode, "MUL") == 0 ){
+    ins->rd = get_num_from_string(tokens[1]);
+    ins->rs1 = get_num_from_string(tokens[2]);
+    ins->rs2 = get_num_from_string(tokens[3]);
+    ins->imm = UNUSED_IMM;
+    copyArray(ins->delay, default_delay, NUM_STAGES);
+    ins->delay[EX] = 2;
+  }
+  /* HALT */
+  else if(strcmp(ins->opcode, "HALT")==0){
+    ins->rd = UNUSED_REG_INDEX;
+    ins->rs1 = UNUSED_REG_INDEX;
+    ins->rs2 = UNUSED_REG_INDEX;
+    ins->imm = UNUSED_IMM;
+    copyArray(ins->delay, default_delay, NUM_STAGES);
+  }
+  /* PRINT_REG R1 */
+  else if(strcmp(ins->opcode, "PRINT_REG")==0){
+    ins->rd = UNUSED_REG_INDEX;
+    ins->rs1 = get_num_from_string(tokens[1]);
+    ins->rs2 = UNUSED_REG_INDEX;
+    ins->imm = UNUSED_IMM;
+    copyArray(ins->delay, default_delay, NUM_STAGES);
+  }
+  /* PRINT_MEM R1 #2 */
+  else if(strcmp(ins->opcode, "PRINT_MEM")==0){
+    ins->rd = UNUSED_REG_INDEX;
+    ins->rs1 = get_num_from_string(tokens[1]);
+    ins->rs2 = UNUSED_REG_INDEX;
+    ins->imm = get_num_from_string(tokens[2]);
+    copyArray(ins->delay, default_delay, NUM_STAGES);
   }
 
   /* UNKNOWN instruction */
@@ -95,6 +132,7 @@ create_APEX_instruction(APEX_Instruction* ins, char* buffer)
     ins->rs1 = UNUSED_REG_INDEX;
     ins->rs2 = UNUSED_REG_INDEX;
     ins->imm = UNUSED_IMM;
+    copyArray(ins->delay, default_delay, NUM_STAGES);
   }
 
 }

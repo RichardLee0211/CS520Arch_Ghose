@@ -11,13 +11,13 @@
 
 /* wenchen */
 #include<limits.h>
+#include<inttypes.h>
 
 typedef unsigned int uint;
 
 /* wenchen regster valid bits */
 #define NUM_REGS 33 // 32+1, since regs[0] is not used
-#define VALID 1
-#define UNVALID 0
+#define VALID 0
 
 /* unused value in instruction struct */
 #define UNUSED_REG_INDEX 0
@@ -38,8 +38,6 @@ typedef unsigned int uint;
 /* Set this flag to 1 to enable debug messages */
 #define ENABLE_DEBUG_MESSAGES 1
 
-extern int enable_interactive;
-
 enum
 {
   F = 0,
@@ -50,6 +48,10 @@ enum
   NUM_STAGES // what's this?: number of stage, smart way
 };
 
+extern int enable_interactive;
+extern int default_delay[NUM_STAGES];
+
+
 /* Format of an APEX instruction  */
 typedef struct APEX_Instruction
 {
@@ -58,6 +60,7 @@ typedef struct APEX_Instruction
   int rs1;		    // Source-1 Register Address
   int rs2;		    // Source-2 Register Address
   int imm;		    // Literal Value
+  int delay[NUM_STAGES]; // wenchen: indicate delay in each stage, should be from the config file of pipeline and ISA
 } APEX_Instruction;
 
 /* Model of CPU stage latch */
@@ -73,6 +76,7 @@ typedef struct CPU_Stage
   int rs2_value;	// Source-2 Register Value
   int buffer;		// Latch to hold some value, like result of EX
   int mem_address;	// Computed Memory Address
+  int delay[NUM_STAGES]; // wenchen: indicate delay in each stage
   int busy;		    // Flag to indicate, stage is performing some action
   int stalled;		// Flag to indicate, stage is stalled
 } CPU_Stage;
@@ -82,6 +86,7 @@ typedef struct APEX_CPU
 {
   int clock;  /* Clock cycles elasped */
   int pc; /* Current program counter */
+  int32_t flags; /* 32 bits of flags, flags&0x1 is zero flag */
   int regs[NUM_REGS]; /* Integer register file */ // wenchen: make it 33 and regs[0] is not used
   int regs_valid[NUM_REGS];
   CPU_Stage stage[NUM_STAGES]; /* Array of 5 CPU_stage */
@@ -118,5 +123,9 @@ memory(APEX_CPU* cpu);
 
 int
 writeback(APEX_CPU* cpu);
+
+/* wenchen */
+int
+copyArray(int* arr1, int* arr2, int size);
 
 #endif

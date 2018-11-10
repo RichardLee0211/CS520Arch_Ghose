@@ -1,0 +1,5 @@
+MOVC, R1, #11
+MOVC, R2, #22
+HALT,
+MOVC, R3, #33
+MOVC, R4, #44

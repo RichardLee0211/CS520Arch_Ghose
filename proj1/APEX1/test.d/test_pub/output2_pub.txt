@@ -1,0 +1,92 @@
+APEX_CPU : Initialized APEX CPU, loaded 6 instructions
+APEX_CPU : Printing Code Memory
+opcode    rd        rs1       rs2       imm      
+MOVC      1         0         0         11       
+MOVC      2         0         0         22       
+STORE     0         1         1         48       
+LOAD      10        0         1         32       
+MOVC      3         0         0         5        
+MOVC      4         0         0         10       
+--------------------------------
+Clock Cycle #: 0
+--------------------------------
+Fetch          : pc(0) UNKNOWN
+--------------------------------
+Clock Cycle #: 1
+--------------------------------
+Fetch          : pc(4000) MOVC,R1,#11 
+--------------------------------
+Clock Cycle #: 2
+--------------------------------
+Decode/RF      : pc(4000) MOVC,R1,#11 
+Fetch          : pc(4004) MOVC,R2,#22 
+--------------------------------
+Clock Cycle #: 3
+--------------------------------
+Execute        : pc(4000) MOVC,R1,#11 
+Decode/RF      : pc(4004) MOVC,R2,#22 
+Fetch          : pc(4008) STORE,R1,R1,#48 
+--------------------------------
+Clock Cycle #: 4
+--------------------------------
+Memory         : pc(4000) MOVC,R1,#11 
+Execute        : pc(4004) MOVC,R2,#22 
+Decode/RF      : pc(4008) STORE,R1,R1,#48 
+Fetch          : pc(4012) LOAD,R0,R1,#32 
+--------------------------------
+Clock Cycle #: 5
+--------------------------------
+Writeback      : pc(4000) MOVC,R1,#11 
+Memory         : pc(4004) MOVC,R2,#22 
+Execute        : pc(4004) NOP
+Decode/RF      : pc(4008) STORE,R1,R1,#48 
+Fetch          : pc(4012) LOAD,R0,R1,#32 
+--------------------------------
+Clock Cycle #: 6
+--------------------------------
+Writeback      : pc(4004) MOVC,R2,#22 
+Memory         : pc(4004) NOP
+Execute        : pc(4008) STORE,R1,R1,#48 
+Decode/RF      : pc(4012) LOAD,R0,R1,#32 
+Fetch          : pc(4016) MOVC,R3,#5 
+--------------------------------
+Clock Cycle #: 7
+--------------------------------
+Writeback      : pc(4004) NOP
+Memory         : pc(4008) STORE,R1,R1,#48 
+Execute        : pc(4012) LOAD,R0,R1,#32 
+Decode/RF      : pc(4016) MOVC,R3,#5 
+Fetch          : pc(4020) MOVC,R4,#10 
+--------------------------------
+Clock Cycle #: 8
+--------------------------------
+Writeback      : pc(4008) STORE,R1,R1,#48 
+Memory         : pc(4012) LOAD,R0,R1,#32 
+Execute        : pc(4016) MOVC,R3,#5 
+Decode/RF      : pc(4020) MOVC,R4,#10 
+Fetch          : pc(4024) NOP
+--------------------------------
+Clock Cycle #: 9
+--------------------------------
+Writeback      : pc(4012) LOAD,R0,R1,#32 
+Memory         : pc(4016) MOVC,R3,#5 
+Execute        : pc(4020) MOVC,R4,#10 
+Decode/RF      : pc(4024) NOP
+Fetch          : pc(4028) NOP
+--------------------------------
+Clock Cycle #: 10
+--------------------------------
+Writeback      : pc(4016) MOVC,R3,#5 
+Memory         : pc(4020) MOVC,R4,#10 
+Execute        : pc(4024) NOP
+Decode/RF      : pc(4028) NOP
+Fetch          : pc(4032) NOP
+--------------------------------
+Clock Cycle #: 11
+--------------------------------
+Writeback      : pc(4020) MOVC,R4,#10 
+Memory         : pc(4024) NOP
+Execute        : pc(4028) NOP
+Decode/RF      : pc(4032) NOP
+Fetch          : pc(4036) NOP
+(apex) >> Simulation Complete

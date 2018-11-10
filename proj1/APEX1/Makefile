@@ -28,7 +28,13 @@ test: test.c
 	clang -std=c11 test.c -o test
 
 run: apex_sim
-	./apex_sim input.asm > output.txt
+	./apex_sim test.d/input.asm > test.d/output.txt
 
 run2: apex_sim
-	./apex_sim input2.asm > output2.txt
+	./apex_sim test.d/input2.asm > test.d/output2.txt
+
+run3: apex_sim
+	./apex_sim test.d/input3.asm > test.d/output3.txt
+
+run3: apex_sim
+	./apex_sim test.d/input4.asm > test.d/output4.txt

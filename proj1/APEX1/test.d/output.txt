@@ -14,27 +14,31 @@ STORE     0         2         3         15
 --------------------------------
 Clock Cycle #: 0
 --------------------------------
-Fetch          : pc(4000) MOVC,R1,#11 
+Fetch          : pc(0) UNKNOWN
 --------------------------------
 Clock Cycle #: 1
+--------------------------------
+Fetch          : pc(4000) MOVC,R1,#11 
+--------------------------------
+Clock Cycle #: 2
 --------------------------------
 Decode/RF      : pc(4000) MOVC,R1,#11 
 Fetch          : pc(4004) MOVC,R2,#22 
 --------------------------------
-Clock Cycle #: 2
+Clock Cycle #: 3
 --------------------------------
 Execute        : pc(4000) MOVC,R1,#11 
 Decode/RF      : pc(4004) MOVC,R2,#22 
 Fetch          : pc(4008) MOVC,R3,#5 
 --------------------------------
-Clock Cycle #: 3
+Clock Cycle #: 4
 --------------------------------
 Memory         : pc(4000) MOVC,R1,#11 
 Execute        : pc(4004) MOVC,R2,#22 
 Decode/RF      : pc(4008) MOVC,R3,#5 
 Fetch          : pc(4012) MOVC,R4,#50 
 --------------------------------
-Clock Cycle #: 4
+Clock Cycle #: 5
 --------------------------------
 Writeback      : pc(4000) MOVC,R1,#11 
 Memory         : pc(4004) MOVC,R2,#22 
@@ -42,7 +46,7 @@ Execute        : pc(4008) MOVC,R3,#5
 Decode/RF      : pc(4012) MOVC,R4,#50 
 Fetch          : pc(4016) MOVC,R5,#51 
 --------------------------------
-Clock Cycle #: 5
+Clock Cycle #: 6
 --------------------------------
 Writeback      : pc(4004) MOVC,R2,#22 
 Memory         : pc(4008) MOVC,R3,#5 
@@ -50,7 +54,7 @@ Execute        : pc(4012) MOVC,R4,#50
 Decode/RF      : pc(4016) MOVC,R5,#51 
 Fetch          : pc(4020) MOVC,R6,#52 
 --------------------------------
-Clock Cycle #: 6
+Clock Cycle #: 7
 --------------------------------
 Writeback      : pc(4008) MOVC,R3,#5 
 Memory         : pc(4012) MOVC,R4,#50 
@@ -58,7 +62,7 @@ Execute        : pc(4016) MOVC,R5,#51
 Decode/RF      : pc(4020) MOVC,R6,#52 
 Fetch          : pc(4024) MOVC,R7,#53 
 --------------------------------
-Clock Cycle #: 7
+Clock Cycle #: 8
 --------------------------------
 Writeback      : pc(4012) MOVC,R4,#50 
 Memory         : pc(4016) MOVC,R5,#51 
@@ -66,7 +70,7 @@ Execute        : pc(4020) MOVC,R6,#52
 Decode/RF      : pc(4024) MOVC,R7,#53 
 Fetch          : pc(4028) MOVC,R8,#54 
 --------------------------------
-Clock Cycle #: 8
+Clock Cycle #: 9
 --------------------------------
 Writeback      : pc(4016) MOVC,R5,#51 
 Memory         : pc(4020) MOVC,R6,#52 
@@ -74,7 +78,7 @@ Execute        : pc(4024) MOVC,R7,#53
 Decode/RF      : pc(4028) MOVC,R8,#54 
 Fetch          : pc(4032) STORE,R1,R3,#10 
 --------------------------------
-Clock Cycle #: 9
+Clock Cycle #: 10
 --------------------------------
 Writeback      : pc(4020) MOVC,R6,#52 
 Memory         : pc(4024) MOVC,R7,#53 
@@ -82,7 +86,7 @@ Execute        : pc(4028) MOVC,R8,#54
 Decode/RF      : pc(4032) STORE,R1,R3,#10 
 Fetch          : pc(4036) STORE,R2,R3,#15 
 --------------------------------
-Clock Cycle #: 10
+Clock Cycle #: 11
 --------------------------------
 Writeback      : pc(4024) MOVC,R7,#53 
 Memory         : pc(4028) MOVC,R8,#54 
@@ -90,7 +94,7 @@ Execute        : pc(4032) STORE,R1,R3,#10
 Decode/RF      : pc(4036) STORE,R2,R3,#15 
 Fetch          : pc(4040) NOP
 --------------------------------
-Clock Cycle #: 11
+Clock Cycle #: 12
 --------------------------------
 Writeback      : pc(4028) MOVC,R8,#54 
 Memory         : pc(4032) STORE,R1,R3,#10 
@@ -98,7 +102,7 @@ Execute        : pc(4036) STORE,R2,R3,#15
 Decode/RF      : pc(4040) NOP
 Fetch          : pc(4044) NOP
 --------------------------------
-Clock Cycle #: 12
+Clock Cycle #: 13
 --------------------------------
 Writeback      : pc(4032) STORE,R1,R3,#10 
 Memory         : pc(4036) STORE,R2,R3,#15 
@@ -106,7 +110,7 @@ Execute        : pc(4040) NOP
 Decode/RF      : pc(4044) NOP
 Fetch          : pc(4048) NOP
 --------------------------------
-Clock Cycle #: 13
+Clock Cycle #: 14
 --------------------------------
 Writeback      : pc(4036) STORE,R2,R3,#15 
 Memory         : pc(4040) NOP

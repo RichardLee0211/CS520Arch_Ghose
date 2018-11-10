@@ -1,0 +1,159 @@
+APEX_CPU : Initialized APEX CPU, loaded 8 instructions
+APEX_CPU : Printing Code Memory
+opcode    rd        rs1       rs2       imm      
+MOVC      1         0         0         11       
+MOVC      2         0         0         22       
+ADD       3         1         2         2147483647
+SUB       4         2         1         2147483647
+MUL       5         3         4         2147483647
+AND       6         5         4         2147483647
+OR        7         5         4         2147483647
+PRINT_REG 0         5         0         2147483647
+--------------------------------
+Clock Cycle #: 0
+--------------------------------
+Fetch          : pc(0) UNKNOWN
+--------------------------------
+Clock Cycle #: 1
+--------------------------------
+Fetch          : pc(4000) MOVC,R1,#11 
+--------------------------------
+Clock Cycle #: 2
+--------------------------------
+Decode/RF      : pc(4000) MOVC,R1,#11 
+Fetch          : pc(4004) MOVC,R2,#22 
+--------------------------------
+Clock Cycle #: 3
+--------------------------------
+Execute        : pc(4000) MOVC,R1,#11 
+Decode/RF      : pc(4004) MOVC,R2,#22 
+Fetch          : pc(4008) ADD,R3,R1,R2
+--------------------------------
+Clock Cycle #: 4
+--------------------------------
+Memory         : pc(4000) MOVC,R1,#11 
+Execute        : pc(4004) MOVC,R2,#22 
+Decode/RF      : pc(4008) ADD,R3,R1,R2
+Fetch          : pc(4012) SUB,R4,R2,R1
+--------------------------------
+Clock Cycle #: 5
+--------------------------------
+Writeback      : pc(4000) MOVC,R1,#11 
+Memory         : pc(4004) MOVC,R2,#22 
+Execute        : pc(4004) NOP
+Decode/RF      : pc(4008) ADD,R3,R1,R2
+Fetch          : pc(4012) SUB,R4,R2,R1
+--------------------------------
+Clock Cycle #: 6
+--------------------------------
+Writeback      : pc(4004) MOVC,R2,#22 
+Memory         : pc(4004) NOP
+Execute        : pc(4004) NOP
+Decode/RF      : pc(4008) ADD,R3,R1,R2
+Fetch          : pc(4012) SUB,R4,R2,R1
+--------------------------------
+Clock Cycle #: 7
+--------------------------------
+Writeback      : pc(4004) NOP
+Memory         : pc(4004) NOP
+Execute        : pc(4008) ADD,R3,R1,R2
+Decode/RF      : pc(4012) SUB,R4,R2,R1
+Fetch          : pc(4016) MUL,R5,R3,R4
+--------------------------------
+Clock Cycle #: 8
+--------------------------------
+Writeback      : pc(4004) NOP
+Memory         : pc(4008) ADD,R3,R1,R2
+Execute        : pc(4012) SUB,R4,R2,R1
+Decode/RF      : pc(4016) MUL,R5,R3,R4
+Fetch          : pc(4020) AND,R6,R5,R4
+--------------------------------
+Clock Cycle #: 9
+--------------------------------
+Writeback      : pc(4008) ADD,R3,R1,R2
+Memory         : pc(4012) SUB,R4,R2,R1
+Execute        : pc(4012) NOP
+Decode/RF      : pc(4016) MUL,R5,R3,R4
+Fetch          : pc(4020) AND,R6,R5,R4
+--------------------------------
+Clock Cycle #: 10
+--------------------------------
+Writeback      : pc(4012) SUB,R4,R2,R1
+Memory         : pc(4012) NOP
+Execute        : pc(4012) NOP
+Decode/RF      : pc(4016) MUL,R5,R3,R4
+Fetch          : pc(4020) AND,R6,R5,R4
+--------------------------------
+Clock Cycle #: 11
+--------------------------------
+Writeback      : pc(4012) NOP
+Memory         : pc(4012) NOP
+Execute        : pc(4016) MUL,R5,R3,R4
+Decode/RF      : pc(4020) AND,R6,R5,R4
+Fetch          : pc(4024) OR,R7,R5,R4
+--------------------------------
+Clock Cycle #: 12
+--------------------------------
+Writeback      : pc(4012) NOP
+Memory         : pc(4012) NOP
+Execute        : pc(4016) MUL,R5,R3,R4
+Decode/RF      : pc(4020) AND,R6,R5,R4
+Fetch          : pc(4024) OR,R7,R5,R4
+--------------------------------
+Clock Cycle #: 13
+--------------------------------
+Writeback      : pc(4012) NOP
+Memory         : pc(4016) MUL,R5,R3,R4
+Execute        : pc(4016) NOP
+Decode/RF      : pc(4020) AND,R6,R5,R4
+Fetch          : pc(4024) OR,R7,R5,R4
+--------------------------------
+Clock Cycle #: 14
+--------------------------------
+Writeback      : pc(4016) MUL,R5,R3,R4
+Memory         : pc(4016) NOP
+Execute        : pc(4016) NOP
+Decode/RF      : pc(4020) AND,R6,R5,R4
+Fetch          : pc(4024) OR,R7,R5,R4
+--------------------------------
+Clock Cycle #: 15
+--------------------------------
+Writeback      : pc(4016) NOP
+Memory         : pc(4016) NOP
+Execute        : pc(4020) AND,R6,R5,R4
+Decode/RF      : pc(4024) OR,R7,R5,R4
+Fetch          : pc(4028) PRINT_REG,R5
+--------------------------------
+Clock Cycle #: 16
+--------------------------------
+Writeback      : pc(4016) NOP
+Memory         : pc(4020) AND,R6,R5,R4
+Execute        : pc(4024) OR,R7,R5,R4
+Decode/RF      : pc(4028) PRINT_REG,R5
+Fetch          : pc(4032) NOP
+--------------------------------
+Clock Cycle #: 17
+--------------------------------
+Writeback      : pc(4020) AND,R6,R5,R4
+Memory         : pc(4024) OR,R7,R5,R4
+Execute        : pc(4028) PRINT_REG,R5
+Decode/RF      : pc(4032) NOP
+Fetch          : pc(4036) NOP
+--------------------------------
+Clock Cycle #: 18
+--------------------------------
+Writeback      : pc(4024) OR,R7,R5,R4
+Memory         : pc(4028) PRINT_REG,R5
+Execute        : pc(4032) NOP
+Decode/RF      : pc(4036) NOP
+Fetch          : pc(4040) NOP
+--------------------------------
+Clock Cycle #: 19
+--------------------------------
+R5: 363
+Writeback      : pc(4028) PRINT_REG,R5
+Memory         : pc(4032) NOP
+Execute        : pc(4036) NOP
+Decode/RF      : pc(4040) NOP
+Fetch          : pc(4044) NOP
+(apex) >> Simulation Complete
