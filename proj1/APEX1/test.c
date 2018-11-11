@@ -30,7 +30,12 @@ int translate(){
 }
 
 int main(){
-  translate();
+  uint32_t flags = 0;
+  flags |= 0x1;
+  printf("%d\n", flags);
+  flags &= ~0x1;
+  printf("%d\n", flags);
+  // translate();
   /* test of getline */
   /*
   char *line=NULL;

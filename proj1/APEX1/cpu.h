@@ -86,7 +86,8 @@ typedef struct APEX_CPU
 {
   int clock;  /* Clock cycles elasped */
   int pc; /* Current program counter */
-  int32_t flags; /* 32 bits of flags, flags&0x1 is zero flag */
+  uint32_t flags; /* 32 bits of flags, flags&0x1 is zero flag */
+  // uint32_t flags_valid; /* 32 bits of flags_valid, flags&0x1 is zero flag */
   int regs[NUM_REGS]; /* Integer register file */ // wenchen: make it 33 and regs[0] is not used
   int regs_valid[NUM_REGS];
   CPU_Stage stage[NUM_STAGES]; /* Array of 5 CPU_stage */

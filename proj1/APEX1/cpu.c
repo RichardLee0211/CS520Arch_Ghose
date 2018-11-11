@@ -111,8 +111,16 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num){
       else if(strcmp(stage->opcode, "PRINT_REG")==0){
         printf("%s,R%d ", stage->opcode, stage->rs1);
       }
-      else if(strcmp(stage->opcode, "PRINT_MEM")==0){
+      else if(strcmp(stage->opcode, "PRINT_MEM")==0 ||
+            strcmp(stage->opcode, "JUMP")==0 ||
+            strcmp(stage->opcode, "JMP")==0
+            ){
         printf("%s,R%d,#%d ", stage->opcode, stage->rs1, stage->imm);
+      }
+      else if(strcmp(stage->opcode, "BZ")==0 ||
+          strcmp(stage->opcode, "BNZ")==0
+          ){
+        printf("%s,#%d ", stage->opcode, stage->imm);
       }
 
       else if(strcmp(stage->opcode, "NOP") == 0 ||
@@ -171,7 +179,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num){
     printf("\n");
   }
 
-  void print_flag_reg(int* flag_reg){
+  void print_flag_reg(uint32_t* flag_reg){
     printf("FLAGS: ");
     for(int i=0; i<32; ++i){
       if(i%4==0) printf(" ");
@@ -203,7 +211,7 @@ APEX_cpu_init(const char* filename)
   /* Initialize PC, Registers and all pipeline stages */
   cpu->clock = 0;
   cpu->pc = PC_START_INDEX;
-  cpu->flags = 0;
+  cpu->flags = 0x0;
   memset(cpu->regs, 0, sizeof(int) * NUM_REGS);
   // memset(cpu->regs_valid, VALID, sizeof(int) * NUM_REGS); // remember memset set byte by byte
   // TODO_3: initial it to VALID, hope clients don't read garbadge from it
@@ -269,29 +277,28 @@ fetch(APEX_CPU* cpu)
   int stage_num = F;
   CPU_Stage* stage = &cpu->stage[stage_num];
 
+  stage->delay[stage_num]--;
+  stage->stalled = UNSTALLED;
+
   /* Copy data from fetch latch to decode latch or fail */
   // TODO_3: may it should ret -1 when failed and set stalled bit here
   copyStagetoNext(cpu, stage_num);
-
-  if (ENABLE_DEBUG_MESSAGES) {
-    print_stage_content("Fetch", stage);
-  }
 
   /* if fetch is busy or stalled, don't fetch from instr_mem */
   if(stage->delay[stage_num]>0 || stage->stalled==STALLED){
     return 0;
   }
 
-  /* Store current PC in fetch latch */
-  stage->pc = cpu->pc;
+  stage->pc = cpu->pc; /* Store current PC in fetch latch */
+  cpu->pc += BYTES_PER_INS; /* Update PC for next instruction */
 
   /* fetch instr from instr_mem to latch */
-  if(cpu->pc >= get_pc(cpu->code_memory_size)){
+  if(stage->pc >= get_pc(cpu->code_memory_size)){
     setStagetoNOPE(stage);
-    stage->pc = get_pc(cpu->code_memory_size);
+    stage->pc = get_pc(cpu->code_memory_size); // because setStagetoNOPE set stage->pc to zero
   }
   else{
-    APEX_Instruction* current_ins = &cpu->code_memory[get_code_index(cpu->pc)];
+    APEX_Instruction* current_ins = &cpu->code_memory[get_code_index(stage->pc)];
     strcpy(stage->opcode, current_ins->opcode);
     stage->rd = current_ins->rd;
     stage->rs1 = current_ins->rs1;
@@ -299,12 +306,6 @@ fetch(APEX_CPU* cpu)
     stage->imm = current_ins->imm;
     copyArray(stage->delay, current_ins->delay, NUM_STAGES);
   }
-
-  stage->delay[stage_num]--;
-  stage->stalled = UNSTALLED;
-  /* Update PC for next instruction */
-  cpu->pc += BYTES_PER_INS;
-
   return 0;
 }
 
@@ -315,11 +316,7 @@ int
 decode(APEX_CPU* cpu)
 {
   int stage_num = DRF;
-  // int next_stage_num = stage_num+1;
   CPU_Stage* stage = &cpu->stage[stage_num];
-  // CPU_Stage* next_stage = &cpu->stage[next_stage_num];
-
-  if(stage->pc == 0) return -1;
 
   /* if not valid?: stalled this stage */
   if( (cpu->regs_valid[stage->rs1]== VALID || cpu->regs_valid[stage->rs1]== stage->pc) &&
@@ -343,12 +340,17 @@ decode(APEX_CPU* cpu)
       stage->rs2_value = cpu->regs[stage->rs2];
     }
 
+    else if (strcmp(stage->opcode, "JUMP") == 0 ||
+        strcmp(stage->opcode, "JMP") == 0
+        ) {
+      stage->rs1_value = cpu->regs[stage->rs1];
+    }
+
     else if (strcmp(stage->opcode, "HALT") == 0
         ) {
       cpu->pc = get_pc(cpu->code_memory_size);
       setStagetoNOPE(&cpu->stage[F]);
       cpu->stage[F].pc= get_pc(cpu->code_memory_size);
-      cpu->stage[F].delay[F]--;
     }
 
     else if (strcmp(stage->opcode, "PRINT_REG") == 0 ||
@@ -358,7 +360,7 @@ decode(APEX_CPU* cpu)
     }
 
     else {
-      // MOVC, NOP, UNKNOWN nothing to do
+      // MOVC, BZ, BNZ, NOP, UNKNOWN nothing to do
     }
 
     stage->delay[stage_num]--;
@@ -371,9 +373,6 @@ decode(APEX_CPU* cpu)
   /* Copy data from decode latch to execute latch*/
   copyStagetoNext(cpu, stage_num);
 
-  if (ENABLE_DEBUG_MESSAGES) {
-    print_stage_content("Decode/RF", stage);
-  }
   return 0;
 }
 
@@ -386,9 +385,6 @@ execute(APEX_CPU* cpu)
   int stage_num = EX;
   CPU_Stage* stage = &cpu->stage[stage_num];
 
-  // pc should with range
-  if(stage->pc == 0) return -1;
-
 
   if (stage->delay[stage_num]>0) {
     if (strcmp(stage->opcode, "STORE") == 0 ||
@@ -399,26 +395,57 @@ execute(APEX_CPU* cpu)
 
     else if (strcmp(stage->opcode, "ADD") == 0) {
       stage->buffer = stage->rs1_value + stage->rs2_value;
+      if(stage->buffer == 0) cpu->flags |= 0x1;
+      else cpu->flags &= ~0x1;
     }
     else if (strcmp(stage->opcode, "SUB") == 0) {
       stage->buffer = stage->rs1_value - stage->rs2_value;
-      if(stage->buffer==0) cpu->flags|=0x1;
+      if(stage->buffer == 0) cpu->flags |= 0x1;
+      else cpu->flags &= ~0x1;
     }
     else if (strcmp(stage->opcode, "MUL") == 0) {
       stage->buffer = stage->rs1_value * stage->rs2_value;
-      if(stage->buffer==0) cpu->flags|=0x1;
+      if(stage->buffer == 0) cpu->flags |= 0x1;
+      else cpu->flags &= ~0x1;
     }
     else if (strcmp(stage->opcode, "AND") == 0) {
       stage->buffer = stage->rs1_value & stage->rs2_value;
-      if(stage->buffer==0) cpu->flags|=0x1;
     }
     else if (strcmp(stage->opcode, "OR") == 0) {
       stage->buffer = stage->rs1_value | stage->rs2_value;
-      if(stage->buffer==0) cpu->flags|=0x1;
     }
     else if (strcmp(stage->opcode, "EX-OR") == 0) {
       stage->buffer = stage->rs1_value ^ stage->rs2_value;
-      if(stage->buffer==0) cpu->flags|=0x1;
+    }
+
+    else if(strcmp(stage->opcode, "JUMP")==0 ||
+        strcmp(stage->opcode, "JMP") ==0
+        ){
+      stage->buffer= stage->rs1_value + stage->imm;
+      cpu->pc = stage->pc + stage->buffer;
+      if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
+      if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
+      setStagetoNOPE(&cpu->stage[F]);
+      setStagetoNOPE(&cpu->stage[DRF]);
+    }
+
+    else if(strcmp(stage->opcode, "BZ")==0){
+      if((cpu->flags&0x1) == 0x1){
+        cpu->pc = stage->pc + stage->imm;
+        if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
+        if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
+        setStagetoNOPE(&cpu->stage[F]);
+        setStagetoNOPE(&cpu->stage[DRF]);
+      }
+    }
+    else if(strcmp(stage->opcode, "BNZ")==0){
+      if((cpu->flags&0x1) == 0x0){
+        cpu->pc = stage->pc + stage->imm;
+        if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
+        if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
+        setStagetoNOPE(&cpu->stage[F]);
+        setStagetoNOPE(&cpu->stage[DRF]);
+      }
     }
 
     else if(strcmp(stage->opcode, "PRINT_MEM")==0){
@@ -436,9 +463,6 @@ execute(APEX_CPU* cpu)
   /* Copy data from Execute latch to Memory latch*/
   copyStagetoNext(cpu, stage_num);
 
-  if (ENABLE_DEBUG_MESSAGES) {
-    print_stage_content("Execute", stage);
-  }
   return 0;
 }
 
@@ -450,8 +474,6 @@ memory(APEX_CPU* cpu)
 {
   int stage_num = MEM;
   CPU_Stage* stage = &cpu->stage[stage_num];
-
-  if(stage->pc == 0) return -1;
 
   if (stage->delay[stage_num]>0) {
 
@@ -478,9 +500,6 @@ memory(APEX_CPU* cpu)
   /* Copy data from decode latch to execute latch*/
   copyStagetoNext(cpu, stage_num);
 
-  if (ENABLE_DEBUG_MESSAGES) {
-    print_stage_content("Memory", stage);
-  }
   return 0;
 }
 
@@ -492,8 +511,6 @@ writeback(APEX_CPU* cpu)
 {
   int stage_num = WB;
   CPU_Stage* stage = &cpu->stage[stage_num];
-
-  if(stage->pc == 0) return -1;
 
   if (stage->delay[stage_num]>0) {
 
@@ -512,14 +529,20 @@ writeback(APEX_CPU* cpu)
 
     else if(strcmp(stage->opcode, "ADD")==0 ||
         strcmp(stage->opcode, "SUB")==0 ||
-        strcmp(stage->opcode, "MUL")==0 ||
-        strcmp(stage->opcode, "AND")==0 ||
+        strcmp(stage->opcode, "MUL")==0
+        ){
+      cpu->regs[stage->rd] = stage->buffer;
+      cpu->regs_valid[stage->rd] = VALID;
+    }
+
+    else if(strcmp(stage->opcode, "AND")==0 ||
         strcmp(stage->opcode, "OR")==0 ||
         strcmp(stage->opcode, "EX-OR")==0
         ){
       cpu->regs[stage->rd] = stage->buffer;
       cpu->regs_valid[stage->rd] = VALID;
     }
+
 
     else if(strcmp(stage->opcode, "PRINT_REG")==0){
       printf("R%d: %d\n", stage->rs1, cpu->regs[stage->rs1]);
@@ -532,10 +555,6 @@ writeback(APEX_CPU* cpu)
     stage->stalled = UNSTALLED;
     if(strcmp(stage->opcode, "NOP")!=0)
       cpu->ins_completed++;
-  }
-
-  if (ENABLE_DEBUG_MESSAGES) {
-    print_stage_content("Writeback", stage);
   }
 
   return 0;
@@ -588,7 +607,7 @@ COMMAND:
       strcmp(command, "p")==0
       ){
     print_all_stage(cpu->stage);
-    print_flag_reg(cpu->regs);
+    print_flag_reg(&cpu->flags);
     print_regs(cpu->regs, cpu->regs_valid);
     print_data_memory(cpu->data_memory);
     goto COMMAND;
@@ -621,18 +640,20 @@ APEX_cpu_run(APEX_CPU* cpu)
       break;
     }
 
-    if (ENABLE_DEBUG_MESSAGES) {
-      printf("--------------------------------\n");
-      printf("Clock Cycle #: %d\n", cpu->clock);
-      printf("--------------------------------\n");
-    }
-
     writeback(cpu);
     memory(cpu);
     execute(cpu);
     decode(cpu);
     fetch(cpu);
     cpu->clock++;
+
+    if (ENABLE_DEBUG_MESSAGES) {
+      printf("--------------------------------\n");
+      printf("after Clock Cycle #: %d\n", cpu->clock);
+      printf("--------------------------------\n");
+      print_all_stage(cpu->stage);
+    }
+
 
     if(enable_interactive){
       if(takeCommand(cpu)==-1){

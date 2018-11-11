@@ -25,9 +25,10 @@ get_num_from_string(char* buffer)
   char str[16];
   int j = 0;
   for (int i = 0; buffer[i] != '\0'; ++i) {
-    if(buffer[i]<'0' || buffer[i]>'9') continue;
-    str[j] = buffer[i];
-    j++;
+    if(buffer[i] == '-' || (buffer[i]>='0' && buffer[i]<='9')){
+      str[j] = buffer[i];
+      j++;
+    }
   }
   str[j] = '\0';
   return atoi(str);
@@ -99,6 +100,27 @@ create_APEX_instruction(APEX_Instruction* ins, char* buffer)
     ins->imm = UNUSED_IMM;
     copyArray(ins->delay, default_delay, NUM_STAGES);
     ins->delay[EX] = 2;
+  }
+
+  /* JMP R1, #2*/
+  else if(strcmp(ins->opcode, "JUMP")==0 ||
+      strcmp(ins->opcode, "JMP")==0
+      ){
+    ins->rd = UNUSED_REG_INDEX;
+    ins->rs1 = get_num_from_string(tokens[1]);
+    ins->rs2 = UNUSED_REG_INDEX;
+    ins->imm = get_num_from_string(tokens[2]);
+    copyArray(ins->delay, default_delay, NUM_STAGES);
+  }
+  /* BZ #1 */
+  else if(strcmp(ins->opcode, "BZ")==0 ||
+      strcmp(ins->opcode, "BNZ")==0
+      ){
+    ins->rd = UNUSED_REG_INDEX;
+    ins->rs1 = UNUSED_REG_INDEX;
+    ins->rs2 = UNUSED_REG_INDEX;
+    ins->imm = get_num_from_string(tokens[1]);
+    copyArray(ins->delay, default_delay, NUM_STAGES);
   }
   /* HALT */
   else if(strcmp(ins->opcode, "HALT")==0){

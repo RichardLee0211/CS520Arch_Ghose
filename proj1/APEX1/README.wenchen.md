@@ -197,3 +197,25 @@ when copy NOP to stage(bubble), set pc=0
 when pc>=get_pc(cpu->code_memory_size), set F stage to NOP, and pc=get_pc(cpu->code_memory_size)
 end pipline when WB get (stage->pc >= cpu->code_memory_size)
 ins_completed++ seems to useless at this point
+
+
+
+## why do we need to set zero flag in WB stage?
+It confused me. setting the zero flag in WB stage will introduce many complex and gain no benefit by doing so. For example:
+1. If setting the zero flag in WB stage, the code needs to judge ﻿﻿﻿﻿﻿﻿﻿whether to generate a bubble or not.
+  e.g. ADD; BZ;
+  it needs to generate a bubble and become ADD; NOP; BZ; to make sure ADD is at WB stage and set the ﻿zero flag, and BZ is in EX stage read the ﻿zero flag.
+  e.g. ADD; AND; BZ;
+  it doesn't need to  generate a bubble to make sure that.
+2. proj1 is an in order pipeline, setting the zero flags in WB stage or EX stage doesn't change zero flag's state in a program
+3. if I use zero_flag and zero_flag_valid, making zero_flag a resource for ADD, SUB, MUL, to judge whether BZ and BNZ wait in EX stage, then it slows down a sequence of ADD, SUB, and MUL.
+  e.g. ADD; BZ;
+  ADD in EX stage, set zero_flag_valid=INVALID
+  ADD in MEM, BZ in EX find zero_flag_valid=INVALID, wait and generate a bubble for next clock
+  ADD in WB, set sero_flag, set zero_flag_valid=VALID; NOP in MEM stage; BZ in EX stage read zero_flag_valid=VALID, read zero_flag.
+  e.g. the same logic for ADD R1 R2 R3; SUB R4 R5 R6;
+  ADD in EX, set zero_flag_valid = INVALID
+  ADD in MEM; SUB in EX read zero_flag_valid=INVALID, wait
+  ADD in WB, set zero_flag_valid = VALID and set zero flag; NOP in MEM; SUB in EX progress
+It introduces an unnecessary bubble.
+In conclusion, in this in-order pipeline, why not set the zero flag in EX stage, then BZ following to read zero flag?
