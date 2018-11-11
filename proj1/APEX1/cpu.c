@@ -10,6 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// #define NDEBUG
+#include <assert.h>
+
 #include "cpu.h"
 
 /* globle between files */
@@ -91,11 +94,14 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num){
       if (strcmp(stage->opcode, "STORE") == 0 ||
           strcmp(stage->opcode, "LOAD") == 0) {
         printf(
-            "%s,R%d,R%d,#%d ", stage->opcode, stage->rs1, stage->rs2, stage->imm);
+            "%s,R%d[%04d],R%d[%04d],#%d ", stage->opcode,
+            stage->rs1, stage->rs1_value,
+            stage->rs2, stage->rs2_value,
+            stage->imm);
       }
 
       else if (strcmp(stage->opcode, "MOVC") == 0) {
-        printf("%s,R%d,#%d ", stage->opcode, stage->rd, stage->imm);
+        printf("%s,R%d[%04d],#%d ", stage->opcode, stage->rd, stage->buffer, stage->imm);
       }
 
       else if (strcmp(stage->opcode, "ADD") == 0 ||
@@ -105,7 +111,9 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num){
           strcmp(stage->opcode, "EX-OR") == 0 ||
           strcmp(stage->opcode, "MUL") == 0
           ){
-        printf("%s,R%d,R%d,R%d ", stage->opcode, stage->rd, stage->rs1, stage->rs2);
+        printf("%s,R%d[%04d],R%d[%04d],R%d[%04d] ", stage->opcode,
+            stage->rd, stage->buffer,
+            stage->rs1, stage->rs1_value, stage->rs2, stage->rs2_value);
       }
 
       else if(strcmp(stage->opcode, "PRINT_REG")==0){
@@ -115,7 +123,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num){
             strcmp(stage->opcode, "JUMP")==0 ||
             strcmp(stage->opcode, "JMP")==0
             ){
-        printf("%s,R%d,#%d ", stage->opcode, stage->rs1, stage->imm);
+        printf("%s,R%d[%04d],#%d ", stage->opcode, stage->rs1, stage->rs1_value, stage->imm);
       }
       else if(strcmp(stage->opcode, "BZ")==0 ||
           strcmp(stage->opcode, "BNZ")==0
@@ -318,7 +326,9 @@ decode(APEX_CPU* cpu)
   int stage_num = DRF;
   CPU_Stage* stage = &cpu->stage[stage_num];
 
-  /* if not valid?: stalled this stage */
+  stage->stalled = UNSTALLED; // initial to be UNSTALLED, until don't get resource or fail copying to next_stage
+
+  /* regs is valid or already belong to me, e.g. ADD R1 R1 R2 */
   if( (cpu->regs_valid[stage->rs1]== VALID || cpu->regs_valid[stage->rs1]== stage->pc) &&
       (cpu->regs_valid[stage->rs2]== VALID || cpu->regs_valid[stage->rs2]== stage->pc) &&
       (cpu->regs_valid[stage->rd]== VALID || cpu->regs_valid[stage->rd]== stage->pc)
@@ -366,6 +376,62 @@ decode(APEX_CPU* cpu)
     stage->delay[stage_num]--;
     stage->stalled = UNSTALLED;
   }
+  /* among rd, r2, r3, at least one of them is in EX or MEM stage */
+  /* data forwarding case
+   * stage->rd is VALID, and rs2 or rs3 is in EX or MEM stage
+   */
+  else if(cpu->regs_valid[stage->rd]==VALID || cpu->regs_valid[stage->rd]==stage->pc){
+    if(stage->rd != UNUSED_REG_INDEX)
+      cpu->regs_valid[stage->rd] = stage->pc;
+
+    if(stage->rs1 == cpu->stage[EX+1].rd ){
+      stage->rs1_value = cpu->stage[EX+1].buffer;
+      if(cpu->regs_valid[stage->rs2]==VALID){
+        stage->rs2_value = cpu->regs[stage->rs2];
+      }else if(stage->rs2 == stage->rs1){
+        stage->rs2_value = stage->rs1_value;
+      }else if(stage->rs2 == cpu->stage[MEM+1].rd){
+        stage->rs2_value = cpu->stage[MEM+1].buffer;
+      }else if(stage->rs2 == cpu->stage[EX].rd){
+        stage->stalled = STALLED; // rs2 haven't finish EX
+      }
+    }else if(stage->rs1 == cpu->stage[MEM+1].rd){
+      stage->rs1_value = cpu->stage[MEM+1].buffer;
+      if(cpu->regs_valid[stage->rs2]==VALID){
+        stage->rs2_value = cpu->regs[stage->rs2];
+      }else if(stage->rs2 == stage->rs1){
+        stage->rs2_value = stage->rs1_value;
+      }else if(stage->rs2 == cpu->stage[EX+1].rd){
+        stage->rs2_value = cpu->stage[MEM].buffer;
+      }else if(stage->rs2 == cpu->stage[EX].rd){
+        stage->stalled = STALLED; // rs2 haven't finish EX
+      }
+    }else if(cpu->regs_valid[stage->rs1] == VALID){
+      stage->rs1_value = cpu->regs[stage->rs1];
+      if(stage->rs2 == cpu->stage[EX+1].rd){
+        stage->rs2_value = cpu->stage[EX+1].buffer;
+      }else if(stage->rs2==cpu->stage[MEM+1].rd){
+        stage->rs2_value = cpu->stage[MEM+1].buffer;
+      }else if(stage->rs2==cpu->stage[EX].rd){
+        stage->stalled = STALLED; // rs2 haven't finish EX
+      }else{
+        assert(0); // rs1 rs2 rd are all valid is not here
+      }
+    }
+    /* rs1 haven't finish EX stage */
+    else if(stage->rs1 == cpu->stage[EX].rd){
+      stage->stalled = STALLED;
+    }else{
+      assert(0); // rs1 should don't have another situation
+    }
+
+    /* successfully forward from MEM latch or WB latch */
+    if(stage->stalled != STALLED){
+      stage->delay[stage_num]--;
+      stage->stalled = UNSTALLED;
+    }
+  }
+  /* rd not valid */
   else{
     stage->stalled = STALLED;
   }
@@ -391,6 +457,10 @@ execute(APEX_CPU* cpu)
         strcmp(stage->opcode, "LOAD") == 0
         ) {
       stage->mem_address = stage->rs2_value + stage->imm; // TODO_3: assume it doesn't excess the boundary
+    }
+
+    else if(strcmp(stage->opcode, "MOVC")==0){
+      stage->buffer = stage->imm;
     }
 
     else if (strcmp(stage->opcode, "ADD") == 0) {
@@ -523,7 +593,7 @@ writeback(APEX_CPU* cpu)
     }
 
     else if (strcmp(stage->opcode, "MOVC") == 0) {
-      cpu->regs[stage->rd] = stage->imm;
+      cpu->regs[stage->rd] = stage->buffer;
       cpu->regs_valid[stage->rd] = VALID;
     }
 

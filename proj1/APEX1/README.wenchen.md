@@ -202,7 +202,7 @@ ins_completed++ seems to useless at this point
 
 ## why do we need to set zero flag in WB stage?
 It confused me. setting the zero flag in WB stage will introduce many complex and gain no benefit by doing so. For example:
-1. If setting the zero flag in WB stage, the code needs to judge ﻿﻿﻿﻿﻿﻿﻿whether to generate a bubble or not.
+1. If setting the zero flag in WB stage, the code needs to judge whether to generate a bubble or not.
   e.g. ADD; BZ;
   it needs to generate a bubble and become ADD; NOP; BZ; to make sure ADD is at WB stage and set the ﻿zero flag, and BZ is in EX stage read the ﻿zero flag.
   e.g. ADD; AND; BZ;
@@ -219,3 +219,10 @@ It confused me. setting the zero flag in WB stage will introduce many complex an
   ADD in WB, set zero_flag_valid = VALID and set zero flag; NOP in MEM; SUB in EX progress
 It introduces an unnecessary bubble.
 In conclusion, in this in-order pipeline, why not set the zero flag in EX stage, then BZ following to read zero flag?
+
+## assert.h
+The canonical way:
+1) Use #include <assert.h> and call assert() in your code.
+2) Then at build time:
+2a) gcc blablabla : this is a debug build, NDEBUG is not defined, and assert() goes into action.
+2b) gcc blablabla -DNDEBUG blablabla : this is a production build, NDEBUG is defined, assert() do nothing.
