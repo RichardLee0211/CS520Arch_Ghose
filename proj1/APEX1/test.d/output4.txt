@@ -1,0 +1,187 @@
+APEX_CPU : Initialized APEX CPU, loaded 15 instructions
+APEX_CPU : Printing Code Memory
+opcode    rd        rs1       rs2       imm      
+MOVC      1         0         0         11       
+MOVC      2         0         0         22       
+MOVC      3         0         0         1        
+STORE     0         3         0         11       
+ADD       4         0         3         2147483647
+MOVC      3         0         0         2        
+STORE     0         3         0         12       
+ADD       4         0         3         2147483647
+MOVC      3         0         0         3        
+STORE     0         3         0         13       
+ADD       4         0         3         2147483647
+MOVC      3         0         0         4        
+ADD       4         0         3         2147483647
+STORE     0         3         0         14       
+STORE     0         1         0         15       
+--------------------------------
+after Clock Cycle #: 1
+--------------------------------
+Writeback      : pc(0000) UNKNOWN  UNSTALLED
+Memory         : pc(0000) UNKNOWN  UNSTALLED
+Execute        : pc(0000) UNKNOWN  UNSTALLED
+Decode/RF      : pc(0000) UNKNOWN  UNSTALLED
+Fetch          : pc(4000) MOVC,R1[0000],#11  UNSTALLED
+--------------------------------
+after Clock Cycle #: 2
+--------------------------------
+Writeback      : pc(0000) UNKNOWN  UNSTALLED
+Memory         : pc(0000) UNKNOWN  UNSTALLED
+Execute        : pc(0000) UNKNOWN  UNSTALLED
+Decode/RF      : pc(4000) MOVC,R1[0000],#11  UNSTALLED
+Fetch          : pc(4004) MOVC,R2[0000],#22  UNSTALLED
+--------------------------------
+after Clock Cycle #: 3
+--------------------------------
+Writeback      : pc(0000) UNKNOWN  UNSTALLED
+Memory         : pc(0000) UNKNOWN  UNSTALLED
+Execute        : pc(4000) MOVC,R1[0000],#11  UNSTALLED
+Decode/RF      : pc(4004) MOVC,R2[0000],#22  UNSTALLED
+Fetch          : pc(4008) MOVC,R3[0000],#1  UNSTALLED
+--------------------------------
+after Clock Cycle #: 4
+--------------------------------
+Writeback      : pc(0000) UNKNOWN  UNSTALLED
+Memory         : pc(4000) MOVC,R1[0011],#11  UNSTALLED
+Execute        : pc(4004) MOVC,R2[0000],#22  UNSTALLED
+Decode/RF      : pc(4008) MOVC,R3[0000],#1  UNSTALLED
+Fetch          : pc(4012) STORE,R3[0000],R0[0000],#11  UNSTALLED
+--------------------------------
+after Clock Cycle #: 5
+--------------------------------
+Writeback      : pc(4000) MOVC,R1[0011],#11  UNSTALLED
+Memory         : pc(4004) MOVC,R2[0022],#22  UNSTALLED
+Execute        : pc(4008) MOVC,R3[0000],#1  UNSTALLED
+Decode/RF      : pc(4012) STORE,R3[0000],R0[0000],#11  UNSTALLED
+Fetch          : pc(4016) ADD,R4[0000],R0[0000],R3[0000]  UNSTALLED
+--------------------------------
+after Clock Cycle #: 6
+--------------------------------
+Writeback      : pc(4004) MOVC,R2[0022],#22  UNSTALLED
+Memory         : pc(4008) MOVC,R3[0001],#1  UNSTALLED
+Execute        : pc(4012) STORE,R3[0001],R0[0000],#11  UNSTALLED
+Decode/RF      : pc(4016) ADD,R4[0000],R0[0000],R3[0000]  UNSTALLED
+Fetch          : pc(4020) MOVC,R3[0000],#2  UNSTALLED
+--------------------------------
+after Clock Cycle #: 7
+--------------------------------
+Writeback      : pc(4008) MOVC,R3[0001],#1  UNSTALLED
+Memory         : pc(4012) STORE,R3[0001],R0[0000],#11  UNSTALLED
+Execute        : pc(4016) ADD,R4[0000],R0[0000],R3[0001]  UNSTALLED
+Decode/RF      : pc(4020) MOVC,R3[0000],#2  UNSTALLED
+Fetch          : pc(4024) STORE,R3[0000],R0[0000],#12  UNSTALLED
+--------------------------------
+after Clock Cycle #: 8
+--------------------------------
+Writeback      : pc(4012) STORE,R3[0001],R0[0000],#11  UNSTALLED
+Memory         : pc(4016) ADD,R4[0001],R0[0000],R3[0001]  UNSTALLED
+Execute        : pc(4020) MOVC,R3[0000],#2  UNSTALLED
+Decode/RF      : pc(4024) STORE,R3[0000],R0[0000],#12  UNSTALLED
+Fetch          : pc(4028) ADD,R4[0000],R0[0000],R3[0000]  UNSTALLED
+--------------------------------
+after Clock Cycle #: 9
+--------------------------------
+Writeback      : pc(4016) ADD,R4[0001],R0[0000],R3[0001]  UNSTALLED
+Memory         : pc(4020) MOVC,R3[0002],#2  UNSTALLED
+Execute        : pc(4024) STORE,R3[0002],R0[0000],#12  UNSTALLED
+Decode/RF      : pc(4028) ADD,R4[0000],R0[0000],R3[0000]  UNSTALLED
+Fetch          : pc(4032) MOVC,R3[0000],#3  UNSTALLED
+--------------------------------
+after Clock Cycle #: 10
+--------------------------------
+Writeback      : pc(4020) MOVC,R3[0002],#2  UNSTALLED
+Memory         : pc(4024) STORE,R3[0002],R0[0000],#12  UNSTALLED
+Execute        : pc(4028) ADD,R4[0000],R0[0000],R3[0002]  UNSTALLED
+Decode/RF      : pc(4032) MOVC,R3[0000],#3  UNSTALLED
+Fetch          : pc(4036) STORE,R3[0000],R0[0000],#13  UNSTALLED
+--------------------------------
+after Clock Cycle #: 11
+--------------------------------
+Writeback      : pc(4024) STORE,R3[0002],R0[0000],#12  UNSTALLED
+Memory         : pc(4028) ADD,R4[0002],R0[0000],R3[0002]  UNSTALLED
+Execute        : pc(4032) MOVC,R3[0000],#3  UNSTALLED
+Decode/RF      : pc(4036) STORE,R3[0000],R0[0000],#13  UNSTALLED
+Fetch          : pc(4040) ADD,R4[0000],R0[0000],R3[0000]  UNSTALLED
+--------------------------------
+after Clock Cycle #: 12
+--------------------------------
+Writeback      : pc(4028) ADD,R4[0002],R0[0000],R3[0002]  UNSTALLED
+Memory         : pc(4032) MOVC,R3[0003],#3  UNSTALLED
+Execute        : pc(4036) STORE,R3[0003],R0[0000],#13  UNSTALLED
+Decode/RF      : pc(4040) ADD,R4[0000],R0[0000],R3[0000]  UNSTALLED
+Fetch          : pc(4044) MOVC,R3[0000],#4  UNSTALLED
+--------------------------------
+after Clock Cycle #: 13
+--------------------------------
+Writeback      : pc(4032) MOVC,R3[0003],#3  UNSTALLED
+Memory         : pc(4036) STORE,R3[0003],R0[0000],#13  UNSTALLED
+Execute        : pc(4040) ADD,R4[0000],R0[0000],R3[0003]  UNSTALLED
+Decode/RF      : pc(4044) MOVC,R3[0000],#4  UNSTALLED
+Fetch          : pc(4048) ADD,R4[0000],R0[0000],R3[0000]  UNSTALLED
+--------------------------------
+after Clock Cycle #: 14
+--------------------------------
+Writeback      : pc(4036) STORE,R3[0003],R0[0000],#13  UNSTALLED
+Memory         : pc(4040) ADD,R4[0003],R0[0000],R3[0003]  UNSTALLED
+Execute        : pc(4044) MOVC,R3[0000],#4  UNSTALLED
+Decode/RF      : pc(4048) ADD,R4[0000],R0[0000],R3[0000]  UNSTALLED
+Fetch          : pc(4052) STORE,R3[0000],R0[0000],#14  UNSTALLED
+--------------------------------
+after Clock Cycle #: 15
+--------------------------------
+Writeback      : pc(4040) ADD,R4[0003],R0[0000],R3[0003]  UNSTALLED
+Memory         : pc(4044) MOVC,R3[0004],#4  UNSTALLED
+Execute        : pc(0000) NOP  UNSTALLED
+Decode/RF      : pc(4048) ADD,R4[0000],R0[0000],R3[0000]  STALLED
+Fetch          : pc(4052) STORE,R3[0000],R0[0000],#14  STALLED
+--------------------------------
+after Clock Cycle #: 16
+--------------------------------
+Writeback      : pc(4044) MOVC,R3[0004],#4  UNSTALLED
+Memory         : pc(0000) NOP  UNSTALLED
+Execute        : pc(4048) ADD,R4[0000],R0[0004],R3[0004]  UNSTALLED
+Decode/RF      : pc(4052) STORE,R3[0000],R0[0000],#14  UNSTALLED
+Fetch          : pc(4056) STORE,R1[0000],R0[0000],#15  UNSTALLED
+--------------------------------
+after Clock Cycle #: 17
+--------------------------------
+Writeback      : pc(0000) NOP  UNSTALLED
+Memory         : pc(4048) ADD,R4[0008],R0[0004],R3[0004]  UNSTALLED
+Execute        : pc(4052) STORE,R3[0004],R0[0000],#14  UNSTALLED
+Decode/RF      : pc(4056) STORE,R1[0000],R0[0000],#15  UNSTALLED
+Fetch          : pc(4060) NOP  UNSTALLED
+--------------------------------
+after Clock Cycle #: 18
+--------------------------------
+Writeback      : pc(4048) ADD,R4[0008],R0[0004],R3[0004]  UNSTALLED
+Memory         : pc(4052) STORE,R3[0004],R0[0000],#14  UNSTALLED
+Execute        : pc(4056) STORE,R1[0011],R0[0000],#15  UNSTALLED
+Decode/RF      : pc(4060) NOP  UNSTALLED
+Fetch          : pc(4060) NOP  UNSTALLED
+--------------------------------
+after Clock Cycle #: 19
+--------------------------------
+Writeback      : pc(4052) STORE,R3[0004],R0[0000],#14  UNSTALLED
+Memory         : pc(4056) STORE,R1[0011],R0[0000],#15  UNSTALLED
+Execute        : pc(4060) NOP  UNSTALLED
+Decode/RF      : pc(4060) NOP  UNSTALLED
+Fetch          : pc(4060) NOP  UNSTALLED
+--------------------------------
+after Clock Cycle #: 20
+--------------------------------
+Writeback      : pc(4056) STORE,R1[0011],R0[0000],#15  UNSTALLED
+Memory         : pc(4060) NOP  UNSTALLED
+Execute        : pc(4060) NOP  UNSTALLED
+Decode/RF      : pc(4060) NOP  UNSTALLED
+Fetch          : pc(4060) NOP  UNSTALLED
+--------------------------------
+after Clock Cycle #: 21
+--------------------------------
+Writeback      : pc(4060) NOP  UNSTALLED
+Memory         : pc(4060) NOP  UNSTALLED
+Execute        : pc(4060) NOP  UNSTALLED
+Decode/RF      : pc(4060) NOP  UNSTALLED
+Fetch          : pc(4060) NOP  UNSTALLED
+(apex) >> Simulation Complete

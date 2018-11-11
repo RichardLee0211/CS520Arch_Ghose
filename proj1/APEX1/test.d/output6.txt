@@ -1,0 +1,124 @@
+APEX_CPU : Initialized APEX CPU, loaded 8 instructions
+APEX_CPU : Printing Code Memory
+opcode    rd        rs1       rs2       imm      
+MOVC      5         0         0         11       
+MOVC      1         0         0         11       
+MOVC      2         0         0         22       
+JUMP      0         0         0         8        
+MOVC      3         0         0         33       
+MOVC      4         0         0         44       
+MOVC      5         0         0         55       
+MOVC      6         0         0         66       
+--------------------------------
+after Clock Cycle #: 1
+--------------------------------
+Writeback      : pc(0000) UNKNOWN  UNSTALLED
+Memory         : pc(0000) UNKNOWN  UNSTALLED
+Execute        : pc(0000) UNKNOWN  UNSTALLED
+Decode/RF      : pc(0000) UNKNOWN  UNSTALLED
+Fetch          : pc(4000) MOVC,R5[0000],#11  UNSTALLED
+--------------------------------
+after Clock Cycle #: 2
+--------------------------------
+Writeback      : pc(0000) UNKNOWN  UNSTALLED
+Memory         : pc(0000) UNKNOWN  UNSTALLED
+Execute        : pc(0000) UNKNOWN  UNSTALLED
+Decode/RF      : pc(4000) MOVC,R5[0000],#11  UNSTALLED
+Fetch          : pc(4004) MOVC,R1[0000],#11  UNSTALLED
+--------------------------------
+after Clock Cycle #: 3
+--------------------------------
+Writeback      : pc(0000) UNKNOWN  UNSTALLED
+Memory         : pc(0000) UNKNOWN  UNSTALLED
+Execute        : pc(4000) MOVC,R5[0000],#11  UNSTALLED
+Decode/RF      : pc(4004) MOVC,R1[0000],#11  UNSTALLED
+Fetch          : pc(4008) MOVC,R2[0000],#22  UNSTALLED
+--------------------------------
+after Clock Cycle #: 4
+--------------------------------
+Writeback      : pc(0000) UNKNOWN  UNSTALLED
+Memory         : pc(4000) MOVC,R5[0011],#11  UNSTALLED
+Execute        : pc(4004) MOVC,R1[0000],#11  UNSTALLED
+Decode/RF      : pc(4008) MOVC,R2[0000],#22  UNSTALLED
+Fetch          : pc(4012) JUMP,R0[0000],#8  UNSTALLED
+--------------------------------
+after Clock Cycle #: 5
+--------------------------------
+Writeback      : pc(4000) MOVC,R5[0011],#11  UNSTALLED
+Memory         : pc(4004) MOVC,R1[0011],#11  UNSTALLED
+Execute        : pc(4008) MOVC,R2[0000],#22  UNSTALLED
+Decode/RF      : pc(4012) JUMP,R0[0000],#8  UNSTALLED
+Fetch          : pc(4016) MOVC,R3[0000],#33  UNSTALLED
+--------------------------------
+after Clock Cycle #: 6
+--------------------------------
+Writeback      : pc(4004) MOVC,R1[0011],#11  UNSTALLED
+Memory         : pc(4008) MOVC,R2[0022],#22  UNSTALLED
+Execute        : pc(4012) JUMP,R0[0000],#8  UNSTALLED
+Decode/RF      : pc(4016) MOVC,R3[0000],#33  UNSTALLED
+Fetch          : pc(4020) MOVC,R4[0000],#44  UNSTALLED
+--------------------------------
+after Clock Cycle #: 7
+--------------------------------
+Writeback      : pc(4008) MOVC,R2[0022],#22  UNSTALLED
+Memory         : pc(4012) JUMP,R0[0000],#8  UNSTALLED
+Execute        : pc(0000) NOP  UNSTALLED
+Decode/RF      : pc(0000) NOP  UNSTALLED
+Fetch          : pc(4020) MOVC,R4[0000],#44  UNSTALLED
+--------------------------------
+after Clock Cycle #: 8
+--------------------------------
+Writeback      : pc(4012) JUMP,R0[0000],#8  UNSTALLED
+Memory         : pc(0000) NOP  UNSTALLED
+Execute        : pc(0000) NOP  UNSTALLED
+Decode/RF      : pc(4020) MOVC,R4[0000],#44  UNSTALLED
+Fetch          : pc(4024) MOVC,R5[0000],#55  UNSTALLED
+--------------------------------
+after Clock Cycle #: 9
+--------------------------------
+Writeback      : pc(0000) NOP  UNSTALLED
+Memory         : pc(0000) NOP  UNSTALLED
+Execute        : pc(4020) MOVC,R4[0000],#44  UNSTALLED
+Decode/RF      : pc(4024) MOVC,R5[0000],#55  UNSTALLED
+Fetch          : pc(4028) MOVC,R6[0000],#66  UNSTALLED
+--------------------------------
+after Clock Cycle #: 10
+--------------------------------
+Writeback      : pc(0000) NOP  UNSTALLED
+Memory         : pc(4020) MOVC,R4[0044],#44  UNSTALLED
+Execute        : pc(4024) MOVC,R5[0000],#55  UNSTALLED
+Decode/RF      : pc(4028) MOVC,R6[0000],#66  UNSTALLED
+Fetch          : pc(4032) NOP  UNSTALLED
+--------------------------------
+after Clock Cycle #: 11
+--------------------------------
+Writeback      : pc(4020) MOVC,R4[0044],#44  UNSTALLED
+Memory         : pc(4024) MOVC,R5[0055],#55  UNSTALLED
+Execute        : pc(4028) MOVC,R6[0000],#66  UNSTALLED
+Decode/RF      : pc(4032) NOP  UNSTALLED
+Fetch          : pc(4032) NOP  UNSTALLED
+--------------------------------
+after Clock Cycle #: 12
+--------------------------------
+Writeback      : pc(4024) MOVC,R5[0055],#55  UNSTALLED
+Memory         : pc(4028) MOVC,R6[0066],#66  UNSTALLED
+Execute        : pc(4032) NOP  UNSTALLED
+Decode/RF      : pc(4032) NOP  UNSTALLED
+Fetch          : pc(4032) NOP  UNSTALLED
+--------------------------------
+after Clock Cycle #: 13
+--------------------------------
+Writeback      : pc(4028) MOVC,R6[0066],#66  UNSTALLED
+Memory         : pc(4032) NOP  UNSTALLED
+Execute        : pc(4032) NOP  UNSTALLED
+Decode/RF      : pc(4032) NOP  UNSTALLED
+Fetch          : pc(4032) NOP  UNSTALLED
+--------------------------------
+after Clock Cycle #: 14
+--------------------------------
+Writeback      : pc(4032) NOP  UNSTALLED
+Memory         : pc(4032) NOP  UNSTALLED
+Execute        : pc(4032) NOP  UNSTALLED
+Decode/RF      : pc(4032) NOP  UNSTALLED
+Fetch          : pc(4032) NOP  UNSTALLED
+(apex) >> Simulation Complete
