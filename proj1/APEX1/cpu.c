@@ -45,7 +45,6 @@ int setStagetoNOPE(CPU_Stage* stage){
  * ret 0 if copy stage to next_stage
  * ret 1 if copy NOP to next_stage
  * ret -1 if copy nothing because next_stage is busy or stalled
- * TODO: return 0 for success, ret -1 failed
  */
 int copyStagetoNext(APEX_CPU* cpu, int stage_num){
   int next_stage_num = stage_num+1;
@@ -336,12 +335,9 @@ decode(APEX_CPU* cpu)
 
   /* regs is valid or already belong to me, e.g. ADD R1 R1 R2 */
   if( (cpu->regs_valid[stage->rs1]== VALID || cpu->regs_valid[stage->rs1]== stage->pc) &&
-      (cpu->regs_valid[stage->rs2]== VALID || cpu->regs_valid[stage->rs2]== stage->pc) &&
-      (cpu->regs_valid[stage->rd]== VALID || cpu->regs_valid[stage->rd]== stage->pc)
+      (cpu->regs_valid[stage->rs2]== VALID || cpu->regs_valid[stage->rs2]== stage->pc)
+      // && (cpu->regs_valid[stage->rd]== VALID || cpu->regs_valid[stage->rd]== stage->pc)
     ){
-    if(stage->rd != UNUSED_REG_INDEX)
-      cpu->regs_valid[stage->rd] = stage->pc;
-
     /* MOVC, +, -, *, /, &, |, ~, ^, STORE, LOAD */
     if (strcmp(stage->opcode, "STORE")==0 ||
         strcmp(stage->opcode, "LOAD")==0 ||
@@ -383,22 +379,17 @@ decode(APEX_CPU* cpu)
     stage->stalled = UNSTALLED;
   }
 #if FORWARD_ENABLE
-  /* among rd, r2, r3, at least one of them is in EX latch or EX+1 latch or MEM+1 stage */
   /* data forwarding case
-   * stage->rd is VALID, and rs2 or rs3 is in EX, EX+1 or MEM+1 stage
+   * at least one of rs2, rs3 is in EX or EX+1 or MEM+1 stage
    */
-  // TODO
-  else if(cpu->regs_valid[stage->rd]==VALID || cpu->regs_valid[stage->rd]==stage->pc){
-    if(stage->rd != UNUSED_REG_INDEX)
-      cpu->regs_valid[stage->rd] = stage->pc;
-
+  else{
     /* forward rs1 */
     if(cpu->regs_valid[stage->rs1] == VALID){
       stage->rs1_value = cpu->regs[stage->rs1];
     }
     /* rs2 haven't finish EX */
     else if(cpu->regs_valid[stage->rs1]==cpu->stage[EX].pc &&
-        cpu->stage[EX].stalled == STALLED
+        ( cpu->stage[EX].stalled == STALLED || cpu->stage[EX].delay[EX]>0)
         ){
       stage->stalled = STALLED;
     }
@@ -423,9 +414,9 @@ decode(APEX_CPU* cpu)
     if(cpu->regs_valid[stage->rs2] == VALID){
       stage->rs2_value = cpu->regs[stage->rs2];
     }
-    /* rs2 haven't finish EX */
+    /* rs2 haven't finish EX, stalled or busy */
     else if(cpu->regs_valid[stage->rs2]==cpu->stage[EX].pc &&
-        cpu->stage[EX].stalled == STALLED
+        ( cpu->stage[EX].stalled == STALLED || cpu->stage[EX].delay[EX]>0)
         ){
       stage->stalled = STALLED;
     }
@@ -454,14 +445,14 @@ decode(APEX_CPU* cpu)
   }
 #endif
 
-  /* rd not valid */
-  else{
-    stage->stalled = STALLED;
-  }
-
   /* Copy data from decode latch to execute latch*/
-  copyStagetoNext(cpu, stage_num);
+  int ret = copyStagetoNext(cpu, stage_num);
 
+  /* set regs_valid to this pc if copy success */
+  // if(stage->stalled == UNSTALLED && stage->delay[stage_num] <= 0){
+  if(ret == 0 && stage->rd != UNUSED_REG_INDEX){
+      cpu->regs_valid[stage->rd] = stage->pc;
+  }
   return 0;
 }
 
@@ -612,12 +603,14 @@ writeback(APEX_CPU* cpu)
     }
     else if(strcmp(stage->opcode, "LOAD") == 0){
       cpu->regs[stage->rd] = stage->buffer;
-      cpu->regs_valid[stage->rd] = VALID;
+      if(cpu->regs_valid[stage->rd]==stage->pc)
+        cpu->regs_valid[stage->rd] = VALID;
     }
 
     else if (strcmp(stage->opcode, "MOVC") == 0) {
       cpu->regs[stage->rd] = stage->buffer;
-      cpu->regs_valid[stage->rd] = VALID;
+      if(cpu->regs_valid[stage->rd]==stage->pc)
+        cpu->regs_valid[stage->rd] = VALID;
     }
 
     else if(strcmp(stage->opcode, "ADD")==0 ||
@@ -625,7 +618,8 @@ writeback(APEX_CPU* cpu)
         strcmp(stage->opcode, "MUL")==0
         ){
       cpu->regs[stage->rd] = stage->buffer;
-      cpu->regs_valid[stage->rd] = VALID;
+      if(cpu->regs_valid[stage->rd]==stage->pc)
+        cpu->regs_valid[stage->rd] = VALID;
     }
 
     else if(strcmp(stage->opcode, "AND")==0 ||
@@ -633,7 +627,8 @@ writeback(APEX_CPU* cpu)
         strcmp(stage->opcode, "EX-OR")==0
         ){
       cpu->regs[stage->rd] = stage->buffer;
-      cpu->regs_valid[stage->rd] = VALID;
+      if(cpu->regs_valid[stage->rd]==stage->pc)
+        cpu->regs_valid[stage->rd] = VALID;
     }
 
 

@@ -272,3 +272,6 @@ in DRF stage:
 register renaming, don't need to check RD valid or not, just update reg_valid
 
 ### notes about my test cases
+add space and \n as token_clim
+add command detector
+add empty line detector
