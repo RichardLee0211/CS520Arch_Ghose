@@ -37,6 +37,7 @@ typedef unsigned int uint;
 
 /* Set this flag to 1 to enable debug messages */
 #define ENABLE_DEBUG_MESSAGES 1
+#define FORWARD_ENABLE 1
 
 enum
 {

@@ -15,9 +15,6 @@
 
 /*
  * This function is related to parsing input file
- *
- * Note : You are not supposed to edit this function
- * but your code sucks
  */
 static int
 get_num_from_string(char* buffer)
@@ -42,13 +39,13 @@ get_num_from_string(char* buffer)
 static void
 create_APEX_instruction(APEX_Instruction* ins, char* buffer)
 {
-  char* token = strtok(buffer, ",");
+  char* token = strtok(buffer, " ,\n");
   int token_num = 0;
   char tokens[6][128];
   while (token != NULL) {
     strcpy(tokens[token_num], token);
     token_num++;
-    token = strtok(NULL, ",");
+    token = strtok(NULL, " ,\n");
   }
 
   strcpy(ins->opcode, tokens[0]);

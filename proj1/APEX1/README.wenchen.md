@@ -162,16 +162,16 @@ the original code don't make sense
     stage->stalled=true
 ```
 
-TODO: interlock
-TODO: this is not right, when pc is excess the boundary of code_memory_size, it keep fetch the garbadge
+DONE: interlock
+DONE: this is not right, when pc is excess the boundary of code_memory_size, it keep fetch the garbadge
 TODO: busy and stalled is in the stage struct which is also latch
 TODO: flag register
-TODO: command interface
+DONE: command interface
 - initialize: init
 - Simulate <n>: step
 - display
-  TODO: print flag register
-TODO: part B
+  DONE: print flag register
+DONE: part B
 
 ## others
 ### these don't matter
@@ -226,3 +226,15 @@ The canonical way:
 2) Then at build time:
 2a) gcc blablabla : this is a debug build, NDEBUG is not defined, and assert() goes into action.
 2b) gcc blablabla -DNDEBUG blablabla : this is a production build, NDEBUG is defined, assert() do nothing.
+
+## original code sucks
+I don't know if it's what you asked for, but you could do the following to improve the skeleton code and design:
+- add comment parse in file_parser.c, it's hard to write long asm code without comment
+- make parser compatible with ADD R1 R2 R3, I don't know who writes asm code in form of ADD,R1,R2,R3. It just gets under my skin when I look at it.
+- stop the F stage keeping fetch garbadge from code_memory after it execess boundary, it's a huge vuln
+- stop condition is not good after BZ, BNZ, JUMP are introduced
+- make the interactive environment a choice instead of the default setting by adding -i parameter .
+-
+
+I doubt the skeleton code and test case are not done by the same person, several stupid errors are made.
+first, need get the file_parser right

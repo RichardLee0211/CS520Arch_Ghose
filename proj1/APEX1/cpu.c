@@ -376,6 +376,7 @@ decode(APEX_CPU* cpu)
     stage->delay[stage_num]--;
     stage->stalled = UNSTALLED;
   }
+#if FORWARD_ENABLE
   /* among rd, r2, r3, at least one of them is in EX or MEM stage */
   /* data forwarding case
    * stage->rd is VALID, and rs2 or rs3 is in EX or MEM stage
@@ -431,6 +432,8 @@ decode(APEX_CPU* cpu)
       stage->stalled = UNSTALLED;
     }
   }
+#endif
+
   /* rd not valid */
   else{
     stage->stalled = STALLED;
