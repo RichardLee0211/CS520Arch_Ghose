@@ -275,3 +275,10 @@ register renaming, don't need to check RD valid or not, just update reg_valid
 add space and \n as token_clim
 add command detector
 add empty line detector
+
+could have stupid error like
+APEX_STAGE* stage = somestage;
+stage[EX]
+instead of cpu->stage[EX]
+forget to type cpu->
+C don't catch such error

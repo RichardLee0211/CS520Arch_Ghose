@@ -422,7 +422,7 @@ decode(APEX_CPU* cpu)
     }
     /* forward have been calculate, ADD, SUB, MUL, AND, OR, EX-OR, NOT, but not LOAD */
     else if(cpu->regs_valid[stage->rs2] == cpu->stage[EX+1].pc ){
-      if(strcmp(stage[EX+1].opcode, "LOAD")==0){
+      if(strcmp(cpu->stage[EX+1].opcode, "LOAD")==0){
         stage->stalled = STALLED;
       }
       else{
