@@ -179,7 +179,8 @@ create_code_memory(const char* filename, int* size)
   int code_memory_size = 0;
 
   while ((nread = getline(&line, &len, fp)) != -1) {
-    code_memory_size++;
+    if(line[0] != '#' && line[0]!='\n') // for # comment
+      code_memory_size++;
   }
   *size = code_memory_size;
   if (!code_memory_size) {
@@ -197,8 +198,10 @@ create_code_memory(const char* filename, int* size)
   rewind(fp);
   int current_instruction = 0;
   while ((nread = getline(&line, &len, fp)) != -1) {
-    create_APEX_instruction(&code_memory[current_instruction], line);
-    current_instruction++;
+    if(line[0] != '#' && line[0]!= '\n'){ // for # comments
+      create_APEX_instruction(&code_memory[current_instruction], line);
+      current_instruction++;
+    }
   }
 
   free(line);

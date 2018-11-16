@@ -238,3 +238,37 @@ I don't know if it's what you asked for, but you could do the following to impro
 
 I doubt the skeleton code and test case are not done by the same person, several stupid errors are made.
 first, need get the file_parser right
+
+this is not beautiful,
+make stupid modification for not data forwarding and BZ, to check stage[EX] stage[MEM] stage[WB] have ADD, SUB, MUL or not
+find a data forwarding bug,
+if depents on LOAD, then have to look at stage[MEM+1]
+if depents on ADD, SUB, MUL, AND, OR, EX-OR, NOT, looking at stage[EX+1], stage[MEM+1], or this is valid
+
+and goto stalled code structure
+has too many little cases inside big cases that could lead to the same result
+
+this is why I don't like have multi_backs up, when you find a buf, got to update them all by hand
+
+dependence on LOAD rd rs1 rs2
+
+Data forwarding logic:
+in DRF stage:
+  for RS1
+  IF VALID
+    copy from reg_file
+  ELSE IF EX && EX stalled
+    STALLED
+  ELSE IF EX+1
+    IF EX+1 == LOAD
+      STALLED
+    ELSE
+      copy from EX+1
+  ELSE IF MEM+1
+    copy from MEM+1
+  ELSE
+    ASSERT
+
+register renaming, don't need to check RD valid or not, just update reg_valid
+
+### notes about my test cases

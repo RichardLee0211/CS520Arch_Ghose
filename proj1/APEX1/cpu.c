@@ -91,11 +91,17 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num){
   static void
     print_instruction(CPU_Stage* stage)
     {
-      if (strcmp(stage->opcode, "STORE") == 0 ||
-          strcmp(stage->opcode, "LOAD") == 0) {
+      if (strcmp(stage->opcode, "STORE") == 0 ) {
         printf(
             "%s,R%d[%04d],R%d[%04d],#%d ", stage->opcode,
             stage->rs1, stage->rs1_value,
+            stage->rs2, stage->rs2_value,
+            stage->imm);
+      }
+      else if(strcmp(stage->opcode, "LOAD") == 0){
+        printf(
+            "%s,R%d[%04d],R%d[%04d],#%d ", stage->opcode,
+            stage->rd, stage->buffer,
             stage->rs2, stage->rs2_value,
             stage->imm);
       }
@@ -225,7 +231,7 @@ APEX_cpu_init(const char* filename)
   // TODO_3: initial it to VALID, hope clients don't read garbadge from it
   for(int i=0; i<NUM_REGS; ++i) cpu->regs_valid[i] = VALID;
   memset(cpu->stage, 0, sizeof(CPU_Stage) * NUM_STAGES);
-  memset(cpu->data_memory, 0, sizeof(int) * DATA_MEM_SIZE);
+  memset(cpu->data_memory, 0xFF, sizeof(int) * DATA_MEM_SIZE); // set to -1 for debug purpose
   cpu->ins_completed=0;
 
   /* Parse input file and create code memory */
@@ -377,53 +383,67 @@ decode(APEX_CPU* cpu)
     stage->stalled = UNSTALLED;
   }
 #if FORWARD_ENABLE
-  /* among rd, r2, r3, at least one of them is in EX or MEM stage */
+  /* among rd, r2, r3, at least one of them is in EX latch or EX+1 latch or MEM+1 stage */
   /* data forwarding case
-   * stage->rd is VALID, and rs2 or rs3 is in EX or MEM stage
+   * stage->rd is VALID, and rs2 or rs3 is in EX, EX+1 or MEM+1 stage
    */
+  // TODO
   else if(cpu->regs_valid[stage->rd]==VALID || cpu->regs_valid[stage->rd]==stage->pc){
     if(stage->rd != UNUSED_REG_INDEX)
       cpu->regs_valid[stage->rd] = stage->pc;
 
-    if(stage->rs1 == cpu->stage[EX+1].rd ){
-      stage->rs1_value = cpu->stage[EX+1].buffer;
-      if(cpu->regs_valid[stage->rs2]==VALID){
-        stage->rs2_value = cpu->regs[stage->rs2];
-      }else if(stage->rs2 == stage->rs1){
-        stage->rs2_value = stage->rs1_value;
-      }else if(stage->rs2 == cpu->stage[MEM+1].rd){
-        stage->rs2_value = cpu->stage[MEM+1].buffer;
-      }else if(stage->rs2 == cpu->stage[EX].rd){
-        stage->stalled = STALLED; // rs2 haven't finish EX
-      }
-    }else if(stage->rs1 == cpu->stage[MEM+1].rd){
-      stage->rs1_value = cpu->stage[MEM+1].buffer;
-      if(cpu->regs_valid[stage->rs2]==VALID){
-        stage->rs2_value = cpu->regs[stage->rs2];
-      }else if(stage->rs2 == stage->rs1){
-        stage->rs2_value = stage->rs1_value;
-      }else if(stage->rs2 == cpu->stage[EX+1].rd){
-        stage->rs2_value = cpu->stage[MEM].buffer;
-      }else if(stage->rs2 == cpu->stage[EX].rd){
-        stage->stalled = STALLED; // rs2 haven't finish EX
-      }
-    }else if(cpu->regs_valid[stage->rs1] == VALID){
+    /* forward rs1 */
+    if(cpu->regs_valid[stage->rs1] == VALID){
       stage->rs1_value = cpu->regs[stage->rs1];
-      if(stage->rs2 == cpu->stage[EX+1].rd){
-        stage->rs2_value = cpu->stage[EX+1].buffer;
-      }else if(stage->rs2==cpu->stage[MEM+1].rd){
-        stage->rs2_value = cpu->stage[MEM+1].buffer;
-      }else if(stage->rs2==cpu->stage[EX].rd){
-        stage->stalled = STALLED; // rs2 haven't finish EX
-      }else{
-        assert(0); // rs1 rs2 rd are all valid is not here
+    }
+    /* rs2 haven't finish EX */
+    else if(cpu->regs_valid[stage->rs1]==cpu->stage[EX].pc &&
+        cpu->stage[EX].stalled == STALLED
+        ){
+      stage->stalled = STALLED;
+    }
+    /* forward have been calculate, ADD, SUB, MUL, AND, OR, EX-OR, NOT, but not LOAD */
+    else if(cpu->regs_valid[stage->rs1] == cpu->stage[EX+1].pc ){
+      if(strcmp(cpu->stage[EX+1].opcode, "LOAD")==0){
+        stage->stalled = STALLED;
+      }
+      else{
+        stage->rs1_value = cpu->stage[EX+1].buffer;
       }
     }
-    /* rs1 haven't finish EX stage */
-    else if(stage->rs1 == cpu->stage[EX].rd){
-      stage->stalled = STALLED;
-    }else{
+    /* forward rs1 from stage[MEM+1] */
+    else if(cpu->regs_valid[stage->rs1] == cpu->stage[MEM+1].pc){
+      stage->rs1_value = cpu->stage[MEM+1].buffer;
+    }
+    else{
       assert(0); // rs1 should don't have another situation
+    }
+
+    /* forward rs2 */
+    if(cpu->regs_valid[stage->rs2] == VALID){
+      stage->rs2_value = cpu->regs[stage->rs2];
+    }
+    /* rs2 haven't finish EX */
+    else if(cpu->regs_valid[stage->rs2]==cpu->stage[EX].pc &&
+        cpu->stage[EX].stalled == STALLED
+        ){
+      stage->stalled = STALLED;
+    }
+    /* forward have been calculate, ADD, SUB, MUL, AND, OR, EX-OR, NOT, but not LOAD */
+    else if(cpu->regs_valid[stage->rs2] == cpu->stage[EX+1].pc ){
+      if(strcmp(stage[EX+1].opcode, "LOAD")==0){
+        stage->stalled = STALLED;
+      }
+      else{
+        stage->rs2_value = cpu->stage[EX+1].buffer;
+      }
+    }
+    /* forward rs2 from stage[MEM+1] */
+    else if(cpu->regs_valid[stage->rs2] == cpu->stage[MEM+1].pc){
+      stage->rs2_value = cpu->stage[MEM+1].buffer;
+    }
+    else{
+      assert(0); // rs2 should don't have another situation
     }
 
     /* successfully forward from MEM latch or WB latch */
