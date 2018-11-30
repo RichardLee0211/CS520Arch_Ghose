@@ -1,6 +1,6 @@
 /* try to save some cpu_helper functions here */
-#include"auxiliary.h"
-#include"cpu.h"
+#include"cpu_helper.h"
+#include"cpu_base.h"
 #include"global.h"
 
 #include<string.h>

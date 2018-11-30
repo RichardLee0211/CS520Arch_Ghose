@@ -3,11 +3,15 @@
  *  Contains functions to parse input file and create
  *  code memory, you can edit this file to add new instructions
  */
+#include "file_parser.h"
+#include "cpu_base.h"
+#include "global.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
-#include "cpu.h"
 
 /*
  * This function is related to parsing input file

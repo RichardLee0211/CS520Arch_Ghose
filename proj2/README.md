@@ -72,9 +72,19 @@ ELSE IF
 <C-w> _     - maximum current window
 <C-w> =     - make windows all equal size
 
+### others
 I am facing a design choice here:
 cpu.c contains the private data
 cpu_helper.c wanna use private data to implement some helper functions(some lower level basic operations)
 solution1: put private data into cpu.h and cpu_helper include it, but cpu.h is public to outside world of cpu module
 solution2: move print/debug and basic functions from cpu_helper.c into cpu.c, making cpu_helper.c don't need to access cpu private data, but it make cpu.c grows too fast, like over 3600 lines
 solution3: creating cpu_base.h, puting cpu module-wise public data and functions in their. Then cpu.c and cpu_helper include cpu_base.h, the could use module-wise public data
+
+I like solution3, cpu module is divide into three sub-modules
+- cpu_base: provide cpu basic data structure, is cpu module-wise public
+- cpu_helper: include cpu_base.h, implement basic functions
+- cpu: include cpu_base.h and cpu_helper.h, implement high level cpu logic, and public to outside world
+- main: drive module, include cpu.h
+
+- global: hold inter-module data and config data
+- file_parse: using cpu_base.h data and public to cpu.c

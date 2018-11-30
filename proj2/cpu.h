@@ -1,12 +1,12 @@
 /**
  *  cpu.h
  *  Contains various CPU and Pipeline Data structures
+ *  public to main.c
  */
 
 #ifndef _APEX_CPU_H_
 #define _APEX_CPU_H_
 
-/* public to main.c, and auxiliary module */
 typedef struct APEX_CPU APEX_CPU;
 typedef struct CPU_Stage CPU_Stage;
 
