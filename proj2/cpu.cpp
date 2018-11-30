@@ -17,10 +17,14 @@
 
 /* cpu.c private functions */
 int takeCommand(APEX_CPU* cpu);
-int fetch(APEX_CPU* cpu);
-int decode(APEX_CPU* cpu);
-int execute(APEX_CPU* cpu);
-int memory(APEX_CPU* cpu);
+int Fetch_run(APEX_CPU* cpu);
+int DRD_run(APEX_CPU* cpu);
+int IQ_run(APEX_CPU* cpu);
+int intFU_run(APEX_CPU* cpu);
+int mulFU_run(APEX_CPU* cpu);
+int LSQ_run(APEX_CPU* cpu);
+int mem_run(APEX_CPU* cpu);
+int ROB_run(APEX_CPU* cpu);
 
 /*
  * This function creates and initializes APEX cpu.
@@ -29,30 +33,51 @@ APEX_CPU*
 APEX_cpu_init(const char* filename)
 {
   if (!filename) {
+    fprintf(stderr, "filename invalid\n");
     return NULL;
   }
 
-  APEX_CPU* cpu = malloc(sizeof(*cpu));
+  APEX_CPU* cpu = (APEX_CPU*)malloc(sizeof(*cpu));
   if (!cpu) {
+    fprintf(stderr, "allocate cpu space error\n");
     return NULL;
   }
 
   /* Initialize PC, Registers and all pipeline stages */
   cpu->clock = 0;
   cpu->pc = PC_START_INDEX;
-  cpu->flags = 0x0;
-  memset(cpu->regs, 0, sizeof(int) * NUM_REGS);
-  // memset(cpu->regs_valid, VALID, sizeof(int) * NUM_REGS); // remember memset set byte by byte
+  // cpu->flags = 0x0;
+
+  /* REGs */
   // TODO_3: initial it to VALID, hope clients don't read garbadge from it
+  memset(cpu->regs, 0x00, sizeof(int) * NUM_REGS);
   for(int i=0; i<NUM_REGS; ++i) cpu->regs_valid[i] = VALID;
-  memset(cpu->stage, 0, sizeof(CPU_Stage) * NUM_STAGES);
+
+  /* RAT and R_RAT */
+  memset(cpu->rat, 0xFF, sizeof(int)*NUM_REGS); // set to -1
+  memset(cpu->r_rat, 0xFF, sizeof(int)*NUM_REGS); // set to -1
+
+  /* URF */
+  memset(cpu->urf, 0x00, sizeof(int)*NUM_UREGS);
+  for(int i=0; i<NUM_UREGS; ++i){ cpu->urf_z_flag[i]= true; cpu->urf_valid[i]= VALID; }
+
+  /* old stages */
+  memset(cpu->stage, 0x00, sizeof(CPU_Stage) * NUM_STAGES);
+
+  /* new stages init */
+  Fetch_stage_init(&cpu->fetch_stage);
+  DRD_init(&cpu->drd);
+  IQ_init(&cpu->iq);
+  ROB_init(&cpu->rob);
+  IntFU_init(&cpu->intFU);
+
   memset(cpu->data_memory, 0xFF, sizeof(int) * DATA_MEM_SIZE); // set to -1 for debug purpose
   cpu->ins_completed=0;
 
   /* Parse input file and create code memory */
   cpu->code_memory = create_code_memory(filename, &cpu->code_memory_size);
-
   if (!cpu->code_memory) {
+    fprintf(stderr, "create_code_memory error\n");
     free(cpu);
     return NULL;
   }
@@ -97,23 +122,26 @@ APEX_cpu_run(APEX_CPU* cpu)
   while (1) {
 
     /* All the instructions committed, so exit */
-    if (cpu->stage[WB].pc >= get_pc(cpu->code_memory_size)) {
+    if (cpu->rob.entry.front().pc >= get_pc(cpu->code_memory_size)) {
       printf("(apex) >> Simulation Complete");
       break;
     }
 
-    // writeback(cpu);
-    memory(cpu);
-    execute(cpu);
-    decode(cpu);
-    fetch(cpu);
+    Fetch_run(cpu);
+    DRD_run(cpu);
+    // IQ_run(cpu);
+    intFU_run(cpu);
+    // mulFU_run(cpu);
+    // LSQ_run(cpu);
+    // mem_run(cpu);
+    ROB_run(cpu);
     cpu->clock++;
 
     if (ENABLE_DEBUG_MESSAGES) {
       printf("--------------------------------\n");
       printf("after Clock Cycle #: %d\n", cpu->clock);
       printf("--------------------------------\n");
-      print_all_stage(cpu->stage);
+      print_all_stage(cpu);
     }
 
 
@@ -133,40 +161,15 @@ APEX_cpu_run(APEX_CPU* cpu)
  *  Fetch Stage of APEX Pipeline
  */
 int
-fetch(APEX_CPU* cpu)
+Fetch_run(APEX_CPU* cpu)
 {
+  /*
   int stage_num = F;
-  CPU_Stage* stage = &cpu->stage[stage_num];
+  Fetch_t* stage = &cpu->fetch_stage;
 
   stage->stalled = UNSTALLED;
-
-  /* Copy data from fetch latch to decode latch or fail */
-  // TODO_3: may it should ret -1 when failed and set stalled bit here
-  copyStagetoNext(cpu, stage_num);
-
-  /* if fetch is busy or stalled, don't fetch from instr_mem */
-  /*
-  if(stage->delay[stage_num]>0 || stage->stalled==STALLED){
-    return 0;
-  }
   */
-
-  stage->pc = cpu->pc; /* Store current PC in fetch latch */
-  cpu->pc += BYTES_PER_INS; /* Update PC for next instruction */
-
-  /* fetch instr from instr_mem to latch */
-  if(stage->pc >= get_pc(cpu->code_memory_size)){
-    setStagetoNOPE(stage);
-    stage->pc = get_pc(cpu->code_memory_size); // because setStagetoNOPE set stage->pc to zero
-  }
-  else{
-    APEX_Instruction* current_ins = &cpu->code_memory[get_code_index(stage->pc)];
-    strcpy(stage->opcode, current_ins->opcode);
-    stage->rd = current_ins->rd;
-    stage->rs1 = current_ins->rs1;
-    stage->rs2 = current_ins->rs2;
-    stage->imm = current_ins->imm;
-  }
+  cpu++;
   return 0;
 }
 
@@ -174,71 +177,9 @@ fetch(APEX_CPU* cpu)
  *  Decode/Renaming/Dispatch Stage of APEX Pipeline
  */
 int
-decode(APEX_CPU* cpu)
+DRD_run(APEX_CPU* cpu)
 {
-  int stage_num = DRF;
-  CPU_Stage* stage = &cpu->stage[stage_num];
-
-  stage->stalled = UNSTALLED; // initial to be UNSTALLED, until don't get resource or fail copying to next_stage
-
-  /* regs is valid or already belong to me, e.g. ADD R1 R1 R2 */
-  if( (cpu->regs_valid[stage->rs1]== VALID || cpu->regs_valid[stage->rs1]== stage->pc) &&
-      (cpu->regs_valid[stage->rs2]== VALID || cpu->regs_valid[stage->rs2]== stage->pc)
-      // && (cpu->regs_valid[stage->rd]== VALID || cpu->regs_valid[stage->rd]== stage->pc)
-    ){
-    /* MOVC, +, -, *, /, &, |, ~, ^, STORE, LOAD */
-    if (strcmp(stage->opcode, "STORE")==0 ||
-        strcmp(stage->opcode, "LOAD")==0 ||
-        strcmp(stage->opcode, "ADD")==0 ||
-        strcmp(stage->opcode, "SUB")==0 ||
-        strcmp(stage->opcode, "AND")==0 ||
-        strcmp(stage->opcode, "OR")==0 ||
-        strcmp(stage->opcode, "EX-OR")==0 ||
-        strcmp(stage->opcode, "MUL")==0
-        ) {
-      stage->rs1_value = cpu->regs[stage->rs1];
-      stage->rs2_value = cpu->regs[stage->rs2];
-    }
-
-    else if (strcmp(stage->opcode, "JUMP") == 0 ||
-        strcmp(stage->opcode, "JMP") == 0
-        ) {
-      stage->rs1_value = cpu->regs[stage->rs1];
-    }
-
-    else if (strcmp(stage->opcode, "HALT") == 0
-        ) {
-      cpu->pc = get_pc(cpu->code_memory_size);
-      setStagetoNOPE(&cpu->stage[F]);
-      cpu->stage[F].pc= get_pc(cpu->code_memory_size);
-    }
-
-    else if (strcmp(stage->opcode, "PRINT_REG") == 0 ||
-        strcmp(stage->opcode, "PRINT_MEM")==0
-        ) {
-      stage->rs1_value= cpu->regs[stage->rs1];
-    }
-
-    else {
-      // MOVC, BZ, BNZ, NOP, UNKNOWN nothing to do
-    }
-
-    stage->stalled = UNSTALLED;
-  }
-#if FORWARD_ENABLE
-  /* data forwarding case
-   * at least one of rs2, rs3 is in EX or EX+1 or MEM+1 stage
-   */
-#endif
-
-  /* Copy data from decode latch to execute latch*/
-  int ret = copyStagetoNext(cpu, stage_num);
-
-  /* set regs_valid to this pc if copy success */
-  // if(stage->stalled == UNSTALLED && stage->delay[stage_num] <= 0){
-  if(ret == 0 && stage->rd != UNUSED_REG_INDEX){
-      cpu->regs_valid[stage->rd] = stage->pc;
-  }
+  cpu++;
   return 0;
 }
 
@@ -246,95 +187,23 @@ decode(APEX_CPU* cpu)
  *  Execute Stage of APEX Pipeline
  */
 int
-execute(APEX_CPU* cpu)
+intFU_run(APEX_CPU* cpu)
 {
-  int stage_num = EX;
-  // CPU_Stage* stage = &cpu->stage[stage_num];
+  cpu++;
+  return 0;
+}
 
+int
+mulFU_run(APEX_CPU* cpu){
+  // TODO:
+  cpu++;
+  return 0;
+}
 
-  /*
-  if (stage->delay[stage_num]>0) {
-    if (strcmp(stage->opcode, "STORE") == 0 ||
-        strcmp(stage->opcode, "LOAD") == 0
-        ) {
-      stage->mem_address = stage->rs2_value + stage->imm; // TODO_3: assume it doesn't excess the boundary
-    }
-
-    else if(strcmp(stage->opcode, "MOVC")==0){
-      stage->buffer = stage->imm;
-    }
-
-    else if (strcmp(stage->opcode, "ADD") == 0) {
-      stage->buffer = stage->rs1_value + stage->rs2_value;
-      if(stage->buffer == 0) cpu->flags |= 0x1;
-      else cpu->flags &= ~0x1;
-    }
-    else if (strcmp(stage->opcode, "SUB") == 0) {
-      stage->buffer = stage->rs1_value - stage->rs2_value;
-      if(stage->buffer == 0) cpu->flags |= 0x1;
-      else cpu->flags &= ~0x1;
-    }
-    else if (strcmp(stage->opcode, "MUL") == 0) {
-      stage->buffer = stage->rs1_value * stage->rs2_value;
-      if(stage->buffer == 0) cpu->flags |= 0x1;
-      else cpu->flags &= ~0x1;
-    }
-    else if (strcmp(stage->opcode, "AND") == 0) {
-      stage->buffer = stage->rs1_value & stage->rs2_value;
-    }
-    else if (strcmp(stage->opcode, "OR") == 0) {
-      stage->buffer = stage->rs1_value | stage->rs2_value;
-    }
-    else if (strcmp(stage->opcode, "EX-OR") == 0) {
-      stage->buffer = stage->rs1_value ^ stage->rs2_value;
-    }
-
-    else if(strcmp(stage->opcode, "JUMP")==0 ||
-        strcmp(stage->opcode, "JMP") ==0
-        ){
-      stage->buffer= stage->rs1_value + stage->imm;
-      cpu->pc = stage->pc + stage->buffer;
-      if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
-      if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
-      setStagetoNOPE(&cpu->stage[F]);
-      setStagetoNOPE(&cpu->stage[DRF]);
-    }
-
-    else if(strcmp(stage->opcode, "BZ")==0){
-      if((cpu->flags&0x1) == 0x1){
-        cpu->pc = stage->pc + stage->imm;
-        if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
-        if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
-        setStagetoNOPE(&cpu->stage[F]);
-        setStagetoNOPE(&cpu->stage[DRF]);
-      }
-    }
-    else if(strcmp(stage->opcode, "BNZ")==0){
-      if((cpu->flags&0x1) == 0x0){
-        cpu->pc = stage->pc + stage->imm;
-        if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
-        if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
-        setStagetoNOPE(&cpu->stage[F]);
-        setStagetoNOPE(&cpu->stage[DRF]);
-      }
-    }
-
-    else if(strcmp(stage->opcode, "PRINT_MEM")==0){
-      stage->mem_address = stage->rs1_value + stage->imm;
-    }
-
-    else{
-      // MOVC, PIRNT_REG, NOP, unknown instruction
-    }
-
-    stage->delay[stage_num] --;
-    stage->stalled = UNSTALLED;
-  }
-  */
-
-  /* Copy data from Execute latch to Memory latch*/
-  copyStagetoNext(cpu, stage_num);
-
+int
+LSQ_run(APEX_CPU* cpu){
+  // TODO:
+  cpu++;
   return 0;
 }
 
@@ -342,103 +211,18 @@ execute(APEX_CPU* cpu)
  *  Memory Stage of APEX Pipeline
  */
 int
-memory(APEX_CPU* cpu)
+mem_run(APEX_CPU* cpu)
 {
-  int stage_num = MEM;
-  // CPU_Stage* stage = &cpu->stage[stage_num];
-
-  /*
-  if (stage->delay[stage_num]>0) {
-
-    if (strcmp(stage->opcode, "STORE") == 0) {
-      cpu->data_memory[stage->mem_address] = stage->rs1_value;
-    }
-    else if (strcmp(stage->opcode, "LOAD") == 0) {
-      stage->buffer = cpu->data_memory[stage->mem_address] ;
-    }
-
-    else if(strcmp(stage->opcode, "PRINT_MEM")==0){
-      printf("MEM[%d]: %d\n", stage->mem_address, cpu->data_memory[stage->mem_address]);
-    }
-
-    else {
-      // MOV, +, -, *, /, &, |, ~, ^, NOP, UNKNOWN
-      // seems nothing to do
-    }
-
-    stage->delay[stage_num]--;
-    stage->stalled = UNSTALLED;
-  }
-  */
-
-  /* Copy data from decode latch to execute latch*/
-  copyStagetoNext(cpu, stage_num);
-
+  // TODO:
+  cpu++;
   return 0;
 }
 
-/*
- *  Writeback Stage of APEX Pipeline
- */
-/*
 int
-writeback(APEX_CPU* cpu)
-{
-  int stage_num = WB;
-  CPU_Stage* stage = &cpu->stage[stage_num];
-
-  if (stage->delay[stage_num]>0) {
-
-    if (strcmp(stage->opcode, "STORE") == 0 ) {
-      // nothing to do with STORE at WB stage
-    }
-    else if(strcmp(stage->opcode, "LOAD") == 0){
-      cpu->regs[stage->rd] = stage->buffer;
-      if(cpu->regs_valid[stage->rd]==stage->pc)
-        cpu->regs_valid[stage->rd] = VALID;
-    }
-
-    else if (strcmp(stage->opcode, "MOVC") == 0) {
-      cpu->regs[stage->rd] = stage->buffer;
-      if(cpu->regs_valid[stage->rd]==stage->pc)
-        cpu->regs_valid[stage->rd] = VALID;
-    }
-
-    else if(strcmp(stage->opcode, "ADD")==0 ||
-        strcmp(stage->opcode, "SUB")==0 ||
-        strcmp(stage->opcode, "MUL")==0
-        ){
-      cpu->regs[stage->rd] = stage->buffer;
-      if(cpu->regs_valid[stage->rd]==stage->pc)
-        cpu->regs_valid[stage->rd] = VALID;
-    }
-
-    else if(strcmp(stage->opcode, "AND")==0 ||
-        strcmp(stage->opcode, "OR")==0 ||
-        strcmp(stage->opcode, "EX-OR")==0
-        ){
-      cpu->regs[stage->rd] = stage->buffer;
-      if(cpu->regs_valid[stage->rd]==stage->pc)
-        cpu->regs_valid[stage->rd] = VALID;
-    }
-
-
-    else if(strcmp(stage->opcode, "PRINT_REG")==0){
-      printf("R%d: %d\n", stage->rs1, cpu->regs[stage->rs1]);
-    }
-
-    else {
-      // PRINT_MEM, NOP, UNKNOWN, nothing to do
-    }
-    stage->delay[stage_num]--;
-    stage->stalled = UNSTALLED;
-    if(strcmp(stage->opcode, "NOP")!=0)
-      cpu->ins_completed++;
-  }
-
+ROB_run(APEX_CPU* cpu){
+  cpu++;
   return 0;
 }
-*/
 
 int
 takeCommand(APEX_CPU* cpu){

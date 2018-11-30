@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "cpu.h"
+#include "global.h"
 
 int
 main(int argc, char const* argv[])

@@ -6,9 +6,9 @@ it's gonna be a big project, go get it
     one-bit status flag that indicates if their contents are valid
     the free bit the indicates if the entry is free
 - ARF: R0~R15
-    PRF: ??
+    PRF: ?: using RAT and R_RAT, ARF is just in our mind
 - RAT: register alias table
-- back-RAT: back-end register alias table??
+- back-RAT: back-end register alias table ?: point to commited value in URF
 
 - IQ: 16 entries
     field to hold the cycle count at the time of dispatch
@@ -28,6 +28,37 @@ ELSE IF RAT[src1] != INVALID
     pickup from URF[RAT[src1]]
     stage->src1_valid = VALID
 ELSE IF
+
+### order of excute
+- fetch
+- drd
+- IQ
+- intFU
+- mulFU
+- LSQ
+- mem
+- ROB
+
+stage():
+  stage->stalled = UNSTALLED
+  if stage->busy== NEW_DATA
+    stage->busy = STAGE_DELAY
+  if stage->busy != DONE
+    work on stage data;
+    stage->busy--;
+  if stage->busy==DONE
+    if copytoNextStage() == -1
+      stage->stalled = STALLED
+    else
+      copy data from latch
+      stage->busy == NEW_DATA
+
+copytoNextStage():
+  if canIcopy()==-1
+    return -1;
+  else
+    do copy;
+    return 0;
 
 ### ISA:
 - [ ] MOVC RD #NUM
@@ -67,7 +98,12 @@ ELSE IF
   RAT[R1] = UX, R_RAT[R1] = UY, after RAT[R1] is update, save old value in R_RAT[R1], used for recovering
 - how file_parse.c functions become useable in cpu.c, without include ?:
     in the original code, public file_parser function is declared in cpu.h, it's like one .h file and two implement .c file
-- don't need write back stage?? do wirte back operations in the end of intFU, mulFU, memFU
+- don't need write back stage ?: do wirte back operations in the end of intFU, mulFU, memFU
+How to do writeback operation?
+At the end of circle T,
+- intFU finish calculating of "ADD R1(U1), R2(U2), R3(U3)". Then it copies result to broadcast_data, and associated ROB entry, and set the ROB entry completed
+- ROB check entry at the head, if it's completed, set R_RAT[R1]=U1 and retire the instrn by moving head pointer forward
+
 
 ### some trick about vim
 <C-w> _     - maximum current window
@@ -91,3 +127,8 @@ I like solution3, cpu module is divide into three sub-modules
 - file_parse: using cpu_base.h data and public to cpu.c
 
 with respect of variable naming rule, don't use RAT, using rat
+
+although I am using cpp, I only use std::data struct, still go C style
+std::queue don't provite interface to look at internel data, like begin method
+so don't support for(auto i: std::queue)
+std::deque
