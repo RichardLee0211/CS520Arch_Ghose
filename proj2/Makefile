@@ -2,7 +2,7 @@
 COMPILE_DEBUG=@
 
 # Compile and Link flags, libraries
-CC=$(CROSS_PREFIX)gcc
+CC=$(CROSS_PREFIX)g++
 CFLAGS= -g -Wall
 LDFLAGS=
 LIBS=
