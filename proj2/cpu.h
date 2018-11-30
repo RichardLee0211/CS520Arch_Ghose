@@ -1,7 +1,7 @@
-/**
- *  cpu.h
- *  Contains various CPU and Pipeline Data structures
- *  public to main.c
+/*
+ * cpu.h
+ * Contains various CPU and Pipeline Data structures
+ * public to main.c, public interface of cpu module
  */
 
 #ifndef _APEX_CPU_H_

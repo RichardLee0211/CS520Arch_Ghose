@@ -1,21 +1,24 @@
-#ifndef GLOBAL_H
-#define GLOBAL_H
-
 /**
  * there are two type of global data,
  * 1. config data, config module set and other modules read
  * 2. private global data, used for inter-module communicate, unknown for outside world
  */
 
+#ifndef GLOBAL_H
+#define GLOBAL_H
+
+#include <limits.h> // for INT_MAX
+typedef unsigned int uint;
+
 /*
  * these config data should be global,
  * maybe there will be config module read config file and change these global config data.
  * other modules then read them
  */
-typedef unsigned int uint;
 
 /* wenchen regster valid bits */
 #define NUM_REGS 32 /* R0~R31, require R0~R15 */
+#define NUM_UREGS 40
 #define VALID 0
 
 /* unused value in instruction struct */

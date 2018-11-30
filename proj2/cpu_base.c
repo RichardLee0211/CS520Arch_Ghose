@@ -5,26 +5,6 @@
 #include<stdio.h>
 #include<limits.h>
 
-/* may have some basic function here */
-
-int setStagetoNOPE(CPU_Stage* stage){
-  stage->pc=0;
-  strcpy(stage->opcode, "NOP");
-  stage->rs1 = UNUSED_REG_INDEX;
-  stage->rs2 = UNUSED_REG_INDEX;
-  stage->rd = UNUSED_REG_INDEX;
-  stage->imm = UNUSED_IMM;
-  return 0;
-}
-
-/*
- * TODO: need rewrite this part,
- */
-int copyStagetoNext(APEX_CPU* cpu, int stage_num){
-  // TODO:
-  return cpu->clock+stage_num;
-}
-
 void
 print_instruction(CPU_Stage* stage)
 {
@@ -85,7 +65,6 @@ print_instruction(CPU_Stage* stage)
   }
 
   printf(" %s", stage->stalled ? "STALLED":"UNSTALLED");
-
 }
 
 /* Debug function which dumps the cpu stage

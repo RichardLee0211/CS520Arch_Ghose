@@ -15,8 +15,7 @@
 // #define NDEBUG
 #include <assert.h>
 
-
-/* private functions */
+/* cpu.c private functions */
 int takeCommand(APEX_CPU* cpu);
 int fetch(APEX_CPU* cpu);
 int decode(APEX_CPU* cpu);
@@ -167,7 +166,6 @@ fetch(APEX_CPU* cpu)
     stage->rs1 = current_ins->rs1;
     stage->rs2 = current_ins->rs2;
     stage->imm = current_ins->imm;
-    // copyArray(stage->delay, current_ins->delay, NUM_STAGES);
   }
   return 0;
 }

@@ -67,6 +67,7 @@ ELSE IF
   RAT[R1] = UX, R_RAT[R1] = UY, after RAT[R1] is update, save old value in R_RAT[R1], used for recovering
 - how file_parse.c functions become useable in cpu.c, without include ?:
     in the original code, public file_parser function is declared in cpu.h, it's like one .h file and two implement .c file
+- don't need write back stage?? do wirte back operations in the end of intFU, mulFU, memFU
 
 ### some trick about vim
 <C-w> _     - maximum current window
@@ -88,3 +89,5 @@ I like solution3, cpu module is divide into three sub-modules
 
 - global: hold inter-module data and config data
 - file_parse: using cpu_base.h data and public to cpu.c
+
+with respect of variable naming rule, don't use RAT, using rat

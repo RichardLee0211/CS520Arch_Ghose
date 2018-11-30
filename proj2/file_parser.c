@@ -1,7 +1,7 @@
 /*
- *  file_parser.c
- *  Contains functions to parse input file and create
- *  code memory, you can edit this file to add new instructions
+ * file_parser.c
+ * Contains functions to parse input file and create
+ * code memory, you can edit this file to add new instructions
  */
 #include "file_parser.h"
 #include "cpu_base.h"
@@ -91,6 +91,16 @@ create_APEX_instruction(APEX_Instruction* ins, char* buffer)
     ins->imm = UNUSED_IMM;
   }
 
+  /* ADDL Rd R1 #NUM */
+  else if(strcmp(ins->opcode, "ADDL")==0 ||
+          strcmp(ins->opcode, "SUBL")==0
+      ){
+    ins->rd = get_num_from_string(tokens[1]);
+    ins->rs1 = get_num_from_string(tokens[2]);
+    ins->rs2 = UNUSED_REG_INDEX;
+    ins->imm = get_num_from_string(tokens[3]);
+  }
+
   /* JMP R1, #2 #absolute addr */
   else if(strcmp(ins->opcode, "JUMP")==0 ||
       strcmp(ins->opcode, "JMP")==0
@@ -109,8 +119,21 @@ create_APEX_instruction(APEX_Instruction* ins, char* buffer)
     ins->rs2 = UNUSED_REG_INDEX;
     ins->imm = get_num_from_string(tokens[1]);
   }
+  /* JAL Rd R1 #NUM */
+  else if(strcmp(ins->opcode, "JAL")==0){
+    ins->rd = get_num_from_string(tokens[1]);
+    ins->rs1 = get_num_from_string(tokens[2]);
+    ins->rs2 = UNUSED_REG_INDEX;
+    ins->imm = get_num_from_string(tokens[3]);
+  }
   /* HALT */
   else if(strcmp(ins->opcode, "HALT")==0){
+    ins->rd = UNUSED_REG_INDEX;
+    ins->rs1 = UNUSED_REG_INDEX;
+    ins->rs2 = UNUSED_REG_INDEX;
+    ins->imm = UNUSED_IMM;
+  }
+  else if(strcmp(ins->opcode, "NOP")==0){
     ins->rd = UNUSED_REG_INDEX;
     ins->rs1 = UNUSED_REG_INDEX;
     ins->rs2 = UNUSED_REG_INDEX;
@@ -139,7 +162,6 @@ create_APEX_instruction(APEX_Instruction* ins, char* buffer)
     ins->rs2 = UNUSED_REG_INDEX;
     ins->imm = UNUSED_IMM;
   }
-
 }
 
 /*
