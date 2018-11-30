@@ -67,3 +67,14 @@ ELSE IF
   RAT[R1] = UX, R_RAT[R1] = UY, after RAT[R1] is update, save old value in R_RAT[R1], used for recovering
 - how file_parse.c functions become useable in cpu.c, without include ?:
     in the original code, public file_parser function is declared in cpu.h, it's like one .h file and two implement .c file
+
+### some trick about vim
+<C-w> _     - maximum current window
+<C-w> =     - make windows all equal size
+
+I am facing a design choice here:
+cpu.c contains the private data
+cpu_helper.c wanna use private data to implement some helper functions(some lower level basic operations)
+solution1: put private data into cpu.h and cpu_helper include it, but cpu.h is public to outside world of cpu module
+solution2: move print/debug and basic functions from cpu_helper.c into cpu.c, making cpu_helper.c don't need to access cpu private data, but it make cpu.c grows too fast, like over 3600 lines
+solution3: creating cpu_base.h, puting cpu module-wise public data and functions in their. Then cpu.c and cpu_helper include cpu_base.h, the could use module-wise public data
