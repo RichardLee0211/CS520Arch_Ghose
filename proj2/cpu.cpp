@@ -23,7 +23,7 @@ int IQ_run(APEX_CPU* cpu);
 int intFU_run(APEX_CPU* cpu);
 int mulFU_run(APEX_CPU* cpu);
 int LSQ_run(APEX_CPU* cpu);
-int mem_run(APEX_CPU* cpu);
+int MEM_run(APEX_CPU* cpu);
 int ROB_run(APEX_CPU* cpu);
 
 /*
@@ -139,14 +139,14 @@ APEX_cpu_run(APEX_CPU* cpu)
       break;
     }
 
-    Fetch_run(cpu);
-    DRD_run(cpu);
-    // IQ_run(cpu);
+    ROB_run(cpu);
     intFU_run(cpu);
+    IQ_run(cpu);
+    DRD_run(cpu);
+    Fetch_run(cpu);
     // mulFU_run(cpu);
     // LSQ_run(cpu);
-    // mem_run(cpu);
-    ROB_run(cpu);
+    // MEM_run(cpu);
     cpu->clock++;
 
     if (ENABLE_DEBUG_MESSAGES) {
@@ -185,35 +185,44 @@ Fetch_run(APEX_CPU* cpu)
   }
 
   /* do the job, nothing for Fetch stage */
-  stage->busy--;
+  if(stage->busy > BUSY_DONE){
+    stage->busy--;
+  }
 
-  int forwardfailed = 1;
+  int isForwarded = -1;
   /* it's done, try to copy data to nextStage */
   if(stage->busy==BUSY_DONE){
-    forwardfailed = copyStagetoNext(cpu, stage_num);
+    isForwarded = copyStagetoNext(cpu, stage_num);
+  }
+  /* business hasn't been done, do it in next circle */
+  else{
+    return 0;
   }
 
   /* forward failed */
-  if(forwardfailed == 1){
+  if(isForwarded == FAILED){
     stage->stalled = STALLED;
   }
-  /* forward success, fetch next work from code_memory */
+  /* forward success */
   else{
+    /* set nextStage to BUSY_NEW, next circle nextStage could start a new clock */
+    cpu->drd.busy = BUSY_NEW;
+    /* fetch next work from code_memory */
     stage->busy = BUSY_NEW;
-    stage->stage.pc = cpu->pc;
+    stage->entry.pc = cpu->pc;
     cpu->pc += BYTES_PER_INS; // Update cpu->pc so it always point to unfetch instrn
 
-    if(stage->stage.pc >= get_pc(cpu->code_memory_size)){
-      setStagetoNOP(&stage->stage);
-      stage->stage.pc = get_pc(cpu->code_memory_size); // because setStagetoNOPE set stage->pc to zero
+    if(stage->entry.pc >= get_pc(cpu->code_memory_size)){
+      setStagetoNOP(&stage->entry);
+      stage->entry.pc = get_pc(cpu->code_memory_size); // because setStagetoNOPE set stage->pc to zero
     }
     else {
-      APEX_Instruction* current_ins = &cpu->code_memory[get_code_index(stage->stage.pc)];
-      strcpy(stage->stage.opcode, current_ins->opcode);
-      stage->stage.rd = current_ins->rd;
-      stage->stage.rs1 = current_ins->rs1;
-      stage->stage.rs2 = current_ins->rs2;
-      stage->stage.imm = current_ins->imm;
+      APEX_Instruction* current_ins = &cpu->code_memory[get_code_index(stage->entry.pc)];
+      strcpy(stage->entry.opcode, current_ins->opcode);
+      stage->entry.rd = current_ins->rd;
+      stage->entry.rs1 = current_ins->rs1;
+      stage->entry.rs2 = current_ins->rs2;
+      stage->entry.imm = current_ins->imm;
     }
   }
   return 0;
@@ -229,31 +238,95 @@ DRD_run(APEX_CPU* cpu)
   DRD_t* stage = &cpu->drd;
   stage->stalled = UNSTALLED;
 
-  /* if it's new data, start busy_clock from begining */
+  /* only set by last stage, if it's new business, start a new busy clock */
   if(stage->busy == BUSY_NEW){
     stage->busy = BUSY_DEFAULT;
   }
 
   /* do the job */
-  // TODO: fetch, renameing
-  stage->busy--;
+  if(stage->busy > BUSY_DONE){
+    /* fetch */
+    fetchValue(cpu, &stage->entry);
+    /* renaming */
+    int urf_index = URF_getValidIndex(cpu);
+    if(urf_index == FAILED){
+      stage->stalled = STALLED;
+      return 0;
+    }
+    cpu->rat[stage->entry.rd] = urf_index;
+    cpu->urf_valid[urf_index] = INVALID;
+    stage->entry.rd_tag = urf_index;
+    /* finish job */
+    stage->busy--;
+  }
 
-  int forwardfailed = 1;
+  int isForwarded = FAILED;
   /* it's done, try to copy data to nextStage */
   if(stage->busy==BUSY_DONE){
-    forwardfailed = copyStagetoNext(cpu, stage_num);
+    isForwarded = copyStagetoNext(cpu, stage_num);
+  }
+  /* business hasn't been done, do it in next circle */
+  else{
+    return 0;
   }
 
   /* forward failed */
-  if(forwardfailed == 1){
+  if(isForwarded == FAILED){
     stage->stalled = STALLED;
   }
-  /* forward success, fetch next work from code_memory */
+  /* forward success, wait last stage to push new data */
   else{
-    // TODO: is lastStage must copy data to stage->latch ??
-    stage->stage = stage->latch;
-    stage->busy = BUSY_NEW;
+    // stage->busy == BUSY_DONE check
+    // stage->stalled = UNSTALLED check
+    // last stage could forward new data and set BUSY_NEW flag
   }
+  return 0;
+}
+
+/*
+ * IQ stage don't need to rely on busy and stalled flag,
+ * DRD would understand status of IQ by asking for valid entry
+ */
+int
+IQ_run(APEX_CPU* cpu){
+  IQ_t* stage = &cpu->iq;
+  // stage->stalled = UNSTALLED;
+
+  /* fetch value for source register, and set readyforIssue flag */
+  for(int i{0}; i<NUM_IQ_ENTRY; ++i){
+    fetchValue(cpu, &stage->entry[i]);
+  }
+
+  /* check readyforIssue flag, and select first issuable entry */
+  int IQ_index_tointFU{UNUSED_INDEX};
+  int IQ_index_tomulFU{UNUSED_INDEX};
+  for(int i{0}; i<NUM_IQ_ENTRY; ++i){
+    if(stage->entry[i].readyforIssue == VALID){
+      if(strcmp(stage->entry[i].opcode, "MUL")==0 &&
+         IQ_index_tomulFU == UNUSED_INDEX
+        ){
+        IQ_index_tomulFU = i;
+      }
+      else if(IQ_index_tointFU == UNUSED_INDEX){
+        IQ_index_tointFU = i;
+      }
+    }
+    if(IQ_index_tointFU != UNUSED_INDEX && IQ_index_tomulFU != UNUSED_INDEX)
+      break;
+  }
+
+  /* copy to intFU and mulFU */
+  if(IQ_index_tointFU != UNUSED_INDEX){
+    if(copyStagetoNext(cpu, IQ, IQ_index_tointFU) != FAILED){
+      stage->entry[IQ_index_tointFU].valid = VALID;
+    }
+  }
+  if(IQ_index_tomulFU != UNUSED_INDEX){
+    if(copyStagetoNext(cpu, IQ, IQ_index_tomulFU) != FAILED){
+      stage->entry[IQ_index_tomulFU].valid = VALID;
+    }
+  }
+
   return 0;
 }
 
@@ -285,7 +358,7 @@ LSQ_run(APEX_CPU* cpu){
  *  Memory Stage of APEX Pipeline
  */
 int
-mem_run(APEX_CPU* cpu)
+MEM_run(APEX_CPU* cpu)
 {
   // TODO:
   cpu++;

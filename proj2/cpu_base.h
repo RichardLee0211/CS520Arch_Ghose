@@ -55,7 +55,9 @@ typedef struct CPU_Stage
 
 struct CPU_Stage_base
 {
-  int stage_valid;
+  int valid; // work for IQ entry. LSQ and ROB using deque
+  int readyforIssue; // work for IQ entry, set to VALID when ready for issue
+  int completed; // work for ROB entry when check for retirement, set to VALID when ready for retirement
 
   int pc;		    // Program Counter
   char opcode[OPCODE_SIZE];	// Operation Code
@@ -87,14 +89,14 @@ struct CPU_Stage_base
 
 struct Fetch_t{
   // CPU_Stage_base latch;
-  CPU_Stage_base stage;
+  CPU_Stage_base entry;
   int busy;
   int stalled;
 };
 
 struct DRD_t{
-  CPU_Stage_base latch;
-  CPU_Stage_base stage;
+  // CPU_Stage_base latch;
+  CPU_Stage_base entry;
   int busy;
   int stalled;
 };
@@ -106,15 +108,15 @@ struct IQ_t{
 };
 
 struct IntFU_t{
-  CPU_Stage_base latch;
-  CPU_Stage_base stage;
+  // CPU_Stage_base latch;
+  CPU_Stage_base entry;
   int busy;
   int stalled;
 };
 
 struct MulFU_t{
-  CPU_Stage_base latch;
-  CPU_Stage_base stage;
+  // CPU_Stage_base latch;
+  CPU_Stage_base entry;
   int busy;
   int stalled;
 };
@@ -129,6 +131,17 @@ struct ROB_t{
   std::deque<CPU_Stage_base> entry; // size should not greater than NUM_ROB_ENTRY;
   int busy;
   int stalled;
+};
+
+struct Broadcast_t{
+  int data_intFU;
+  int tag_intFU;
+
+  int data_mulFU;
+  int tag_mulFU;
+
+  int data_mem;
+  int tag_mem;
 };
 
 
@@ -162,7 +175,9 @@ struct APEX_CPU
   LSQ_t lsq;
   IQ_t iq;
   IntFU_t intFU;
+  MulFU_t mulFU;
 
+  Broadcast_t broadcast;
 
   int code_memory_size;
   APEX_Instruction* code_memory; /* Code Memory where instructions are stored */
@@ -174,13 +189,15 @@ struct APEX_CPU
 
 /* basic functions */
 int setStagetoNOPE(CPU_Stage* stage); // old
-int setStagetoNOP(CPU_Stage_base* stage);
-int copyStagetoNext(APEX_CPU* cpu, int stage_num);
+int setStagetoNOP(CPU_Stage_base* entry);
+int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index=UNUSED_INDEX);
+int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry);
+int URF_getValidIndex(APEX_CPU* cpu);
 
 /* print/debug functions */
 void print_instruction(CPU_Stage* stage);
 void print_stage_content(char* name, CPU_Stage* stage);
-void print_all_stage(CPU_Stage* stages);
+void print_all_stage(CPU_Stage* stages); /* old */
 void print_all_stage(APEX_CPU* cpu);
 void print_regs(int* regs, int* regs_valid);
 void print_data_memory(int* data_memory);

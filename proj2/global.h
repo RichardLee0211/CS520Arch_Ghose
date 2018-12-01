@@ -28,6 +28,7 @@ typedef unsigned int uint;
 #define INVALID -1
 
 /* unused value in instruction struct */
+#define UNUSED_INDEX -1 // for IQ_index
 #define UNUSED_REG_INDEX -1
 #define UNUSED_IMM INT_MAX
 
@@ -60,6 +61,8 @@ typedef unsigned int uint;
 #define NUM_ROB_ENTRY 32
 #define NUM_LSQ_ENTRY 20
 #define OPCODE_SIZE 8
+
+#define FAILED -1 // for getValidEntry functions,
 
 /* Set this flag to 1 to enable debug messages */
 #define ENABLE_DEBUG_MESSAGES 1
