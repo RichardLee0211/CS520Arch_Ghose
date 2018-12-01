@@ -122,7 +122,19 @@ APEX_cpu_run(APEX_CPU* cpu)
   while (1) {
 
     /* All the instructions committed, so exit */
-    if (cpu->rob.entry.front().pc >= get_pc(cpu->code_memory_size)) {
+    // TODO_2: is there a better condition??
+    if (
+        (
+        cpu->pc >= get_pc(cpu->code_memory_size) &&
+        !cpu->rob.entry.empty() &&
+        cpu->rob.entry.front().pc >= get_pc(cpu->code_memory_size)
+        )
+        ||
+        (
+        !cpu->rob.entry.empty() &&
+        strcmp(cpu->rob.entry.front().opcode, "HALT")==0
+        )
+      ){
       printf("(apex) >> Simulation Complete");
       break;
     }
@@ -163,13 +175,47 @@ APEX_cpu_run(APEX_CPU* cpu)
 int
 Fetch_run(APEX_CPU* cpu)
 {
-  /*
   int stage_num = F;
   Fetch_t* stage = &cpu->fetch_stage;
-
   stage->stalled = UNSTALLED;
-  */
-  cpu++;
+
+  /* if it's new data, start busy_clock from begining */
+  if(stage->busy == BUSY_NEW){
+    stage->busy = BUSY_DEFAULT;
+  }
+
+  /* do the job, nothing for Fetch stage */
+  stage->busy--;
+
+  int forwardfailed = 1;
+  /* it's done, try to copy data to nextStage */
+  if(stage->busy==BUSY_DONE){
+    forwardfailed = copyStagetoNext(cpu, stage_num);
+  }
+
+  /* forward failed */
+  if(forwardfailed == 1){
+    stage->stalled = STALLED;
+  }
+  /* forward success, fetch next work from code_memory */
+  else{
+    stage->busy = BUSY_NEW;
+    stage->stage.pc = cpu->pc;
+    cpu->pc += BYTES_PER_INS; // Update cpu->pc so it always point to unfetch instrn
+
+    if(stage->stage.pc >= get_pc(cpu->code_memory_size)){
+      setStagetoNOP(&stage->stage);
+      stage->stage.pc = get_pc(cpu->code_memory_size); // because setStagetoNOPE set stage->pc to zero
+    }
+    else {
+      APEX_Instruction* current_ins = &cpu->code_memory[get_code_index(stage->stage.pc)];
+      strcpy(stage->stage.opcode, current_ins->opcode);
+      stage->stage.rd = current_ins->rd;
+      stage->stage.rs1 = current_ins->rs1;
+      stage->stage.rs2 = current_ins->rs2;
+      stage->stage.imm = current_ins->imm;
+    }
+  }
   return 0;
 }
 
@@ -179,7 +225,35 @@ Fetch_run(APEX_CPU* cpu)
 int
 DRD_run(APEX_CPU* cpu)
 {
-  cpu++;
+  int stage_num = DRD;
+  DRD_t* stage = &cpu->drd;
+  stage->stalled = UNSTALLED;
+
+  /* if it's new data, start busy_clock from begining */
+  if(stage->busy == BUSY_NEW){
+    stage->busy = BUSY_DEFAULT;
+  }
+
+  /* do the job */
+  // TODO: fetch, renameing
+  stage->busy--;
+
+  int forwardfailed = 1;
+  /* it's done, try to copy data to nextStage */
+  if(stage->busy==BUSY_DONE){
+    forwardfailed = copyStagetoNext(cpu, stage_num);
+  }
+
+  /* forward failed */
+  if(forwardfailed == 1){
+    stage->stalled = STALLED;
+  }
+  /* forward success, fetch next work from code_memory */
+  else{
+    // TODO: is lastStage must copy data to stage->latch ??
+    stage->stage = stage->latch;
+    stage->busy = BUSY_NEW;
+  }
   return 0;
 }
 

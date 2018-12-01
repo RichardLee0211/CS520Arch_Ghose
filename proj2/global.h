@@ -51,6 +51,7 @@ typedef unsigned int uint;
 #define BUSY_MUL_DELAY 2
 #define BUSY_MEM_DELAY 3
 #define BUSY_DONE 0
+#define BUSY_ALMOST_DONE 1 // if nextStage is almost done, copy stage to nextstage latch
 
 
 #define DATA_MEM_SIZE 4096
@@ -64,6 +65,5 @@ typedef unsigned int uint;
 #define ENABLE_DEBUG_MESSAGES 1
 
 extern int enable_interactive;
-
 
 #endif /* GLOBAL_H */

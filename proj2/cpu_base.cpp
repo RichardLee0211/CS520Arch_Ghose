@@ -250,6 +250,7 @@ void print_flag_reg(uint32_t* flag_reg){
 /* functions on stages */
 /* init functions */
 int stage_base_init(CPU_Stage_base* stage_base){
+  // set all most everything to -1
   memset(stage_base, 0xFF, sizeof(*stage_base));
   memset(stage_base->opcode, 0x00, OPCODE_SIZE*sizeof(char));
   stage_base->imm = UNUSED_IMM;
@@ -257,7 +258,6 @@ int stage_base_init(CPU_Stage_base* stage_base){
 }
 
 int Fetch_stage_init(Fetch_t* stage){
-  stage_base_init(&stage->latch);
   stage_base_init(&stage->stage);
   stage->busy = BUSY_DONE;
   stage->stalled = UNSTALLED;
@@ -291,5 +291,48 @@ int IntFU_init(IntFU_t* stage){
   stage_base_init(&stage->stage);
   stage->busy = BUSY_DONE;
   stage->stalled = UNSTALLED;
+  return 0;
+}
+
+/* have some basic function here */
+/* old */
+int setStagetoNOPE(CPU_Stage* stage){
+  stage->pc=0;
+  strcpy(stage->opcode, "NOP");
+  stage->rs1 = UNUSED_REG_INDEX;
+  stage->rs2 = UNUSED_REG_INDEX;
+  stage->rd = UNUSED_REG_INDEX;
+  stage->imm = UNUSED_IMM;
+  return 0;
+}
+
+int setStagetoNOP(CPU_Stage_base* stage){
+  stage->pc=0;
+  strcpy(stage->opcode, "NOP");
+  stage->rs1 = UNUSED_REG_INDEX;
+  stage->rs2 = UNUSED_REG_INDEX;
+  stage->rd = UNUSED_REG_INDEX;
+  stage->imm = UNUSED_IMM;
+  return 0;
+}
+
+/*
+ * 0 means success
+ * 1 means need to wait
+ */
+int copyStagetoNext(APEX_CPU* cpu, int stage_num){
+  if(!cpu || stage_num<F || stage_num >= NUM_STAGES){
+    fprintf(stderr, "invalid cpu ptr or stage_num");
+    assert(0);
+  }
+  if(stage_num == F){
+    Fetch_t* stage = &cpu->fetch_stage;
+    DRD_t* nextStage = &cpu->drd;
+    if(nextStage->busy >= BUSY_ALMOST_DONE || nextStage->stalled == STALLED){
+      return 1;
+    }
+    nextStage->latch = stage->stage;
+    return 0;
+  }
   return 0;
 }

@@ -86,7 +86,7 @@ struct CPU_Stage_base
 };
 
 struct Fetch_t{
-  CPU_Stage_base latch;
+  // CPU_Stage_base latch;
   CPU_Stage_base stage;
   int busy;
   int stalled;
@@ -173,7 +173,8 @@ struct APEX_CPU
 
 
 /* basic functions */
-int setStagetoNOPE(CPU_Stage* stage);
+int setStagetoNOPE(CPU_Stage* stage); // old
+int setStagetoNOP(CPU_Stage_base* stage);
 int copyStagetoNext(APEX_CPU* cpu, int stage_num);
 
 /* print/debug functions */

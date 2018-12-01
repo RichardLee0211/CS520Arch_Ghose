@@ -132,3 +132,7 @@ although I am using cpp, I only use std::data struct, still go C style
 std::queue don't provite interface to look at internel data, like begin method
 so don't support for(auto i: std::queue)
 std::deque
+
+void myPerror(const char* errorMessage){
+  fprintf(stderr, errorMessage); // potential insecure
+}
