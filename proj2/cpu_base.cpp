@@ -169,22 +169,35 @@ void print_ROB(ROB_t* stage){
     printf("%15s: pc(%04d,%03d,%1d) ", "ROB ",  i.pc, i.dispatch_cycle, i.CFID);
     // TODO: ??
     print_instruction(&i);
+    printf(" %s", i.completed==VALID ? "COMPLETE" : "");
     printf("\n");
   }
 }
 
 void print_intFU(IntFU_t* stage){
-  printf("%-15s: pc(%04d,%03d,%1d) ", "intFU",
-      stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
-  print_instruction(&stage->entry);
-  printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
+  /* busy is done, and data forward complete */
+  if(stage->busy == BUSY_DONE && stage->stalled == UNSTALLED){
+    printf("%-15s: empty\n", "intFU");
+  }
+  else{
+    printf("%-15s: pc(%04d,%03d,%1d) ", "intFU",
+        stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
+    print_instruction(&stage->entry);
+    printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
+  }
 }
 
 void print_mulFU(MulFU_t* stage){
-  printf("%-15s: pc(%04d,%03d,%1d) ", "mulFU",
-      stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
-  print_instruction(&stage->entry);
-  printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
+  /* busy is done, and data forward complete */
+  if(stage->busy == BUSY_DONE && stage->stalled == UNSTALLED){
+    printf("%-15s: empty\n", "mulFU");
+  }
+  else{
+    printf("%-15s: pc(%04d,%03d,%1d) ", "mulFU",
+        stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
+    print_instruction(&stage->entry);
+    printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
+  }
 }
 
 /*
@@ -217,7 +230,7 @@ void print_all_stage(APEX_CPU* cpu){
   // print_LSQ(&cpu->lsq); printf("\n");
 
   print_intFU(&cpu->intFU);
-  // print_mulFU(&cpu->mulFU);
+  print_mulFU(&cpu->mulFU);
   print_IQ(&cpu->iq); printf("\n");
 
   print_DRD(&cpu->drd);
@@ -237,17 +250,22 @@ void print_regs(int* regs, int* regs_valid){
 /* new */
 void print_regs(APEX_CPU* cpu){
   for(int i{0}; i<NUM_REGS; ++i){
-    int u_index = cpu->rat[i];
-    printf("%03d  ", cpu->urf[u_index]);
-    if((i%(NUM_REGS/4))==0) printf("\n");
+    if(i%8==0) printf("ARF[%02d]: ", i);
+    int u_index = cpu->r_rat[i];
+    if(u_index != UNUSED_REG_INDEX)
+      printf("%03d  ", cpu->urf[u_index]);
+    else
+      printf("N/A  ");
+    if((i%8)==7) printf("\n");
   }
   printf("\n");
 }
 
 void print_data_memory(int* data_memory){
   for(int i=0; i<100; ++i){
-    if(i%8==0) printf("\nDATA_MEM[%02d]", i);
+    if(i%8==0) printf("DATA_MEM[%02d]: ", i);
     printf("%3d  ", data_memory[i]);
+    if(i%8==7) printf("\n");
   }
   printf("\n");
 }
@@ -359,13 +377,7 @@ int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
   int failed = INVALID;
   /* fetch rs1_value if its needed and haven't been fetched */
   if(entry->rs1 != UNUSED_REG_INDEX && entry->rs1_value_valid==INVALID){
-    /* because rat entries initial to UNUSED_REG_INDEX */
-    if(cpu->rat[entry->rs1] == UNUSED_REG_INDEX){
-      fprintf(stderr, "using un-initial register\n");
-      assert(0);
-    }
-    entry->rs1_tag = cpu->rat[entry->rs1];
-    /* lastest instance could in ROB and
+    /* lastest instance could in ROB or
      * commited value to urf and r_rat[rs1] point to it*/
     if(entry->rs1_tag == cpu->r_rat[entry->rs1]){
       entry->rs1_value = cpu->urf[entry->rs1_tag];
@@ -391,14 +403,9 @@ int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
       failed = VALID;
     }
   }
+  /* the same for rs2 */
   if(entry->rs2 != UNUSED_REG_INDEX && entry->rs2_value_valid==INVALID){
-    /* because rat entries initial to UNUSED_REG_INDEX */
-    if(cpu->rat[entry->rs2] == UNUSED_REG_INDEX){
-      fprintf(stderr, "using un-initial register\n");
-      assert(0);
-    }
-    entry->rs2_tag = cpu->rat[entry->rs2];
-    /* lastest instance could in ROB and commited value */
+    /* lastest instance could in ROB or commited value */
     if(entry->rs2_tag == cpu->r_rat[entry->rs2]){
       entry->rs2_value = cpu->urf[entry->rs2_tag];
       entry->rs2_value_valid = VALID;
@@ -504,7 +511,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
     nextStage->entry= stage->entry;
     return SUCCEED;
   }
-  /* dispatch logic, DRD->... */
+  /* dispatch logic, DRD->IQ, DRD->ROB, DRD->LSQ */
   else if(stage_num == DRD){
     DRD_t* stage = &cpu->drd;
     /* LOAD, STORE: DRD->IQ, DRD->ROB, DRD->LSQ */
@@ -576,17 +583,47 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
   }
   /* intFU->broadcast, intFU->ROB */
   else if(stage_num == intFU){
-    /* set ROB entry buffer and valid bit */
     IntFU_t* stage = &cpu->intFU;
+    /* LOAD or STORE, intFU->LSQ */
+    if(strcmp(stage->entry.opcode, "LOAD")==0 ||
+        strcmp(stage->entry.opcode, "STORE") ==0
+      ){
+      // TODO:
+      assert(cpu->lsq.entry.size() >0);
+    }
+    /* other instrn */
+    else{
+      /* intFU->ROB, set ROB entry buffer and valid bit */
+      CPU_Stage_base* ROB_entry_ptr = ROB_searchEntry(cpu, stage->entry.dispatch_cycle);
+      if(ROB_entry_ptr != NULL){
+        stage->entry.completed = VALID;
+        *ROB_entry_ptr = stage->entry;
+      }
+      /* intFU->broadcast */
+      if(stage->entry.rd != UNUSED_REG_INDEX){
+        assert(stage->entry.rd_tag != UNUSED_REG_INDEX);
+        assert(stage->entry.buffer_valid == VALID);
+        cpu->broadcast.data_intFU = stage->entry.buffer;
+        cpu->broadcast.tag_intFU = stage->entry.rd_tag;
+      }
+    }
+  }
+  /* mulFU->broadcast, mulFU->ROB */
+  else if(stage_num == mulFU){
+    /* set ROB entry buffer and valid bit */
+    MulFU_t* stage = &cpu->mulFU;
     CPU_Stage_base* ROB_entry_ptr = ROB_searchEntry(cpu, stage->entry.dispatch_cycle);
     if(ROB_entry_ptr != NULL){
       stage->entry.completed = VALID;
       *ROB_entry_ptr = stage->entry;
     }
-  }
-  /* mulFU->broadcast, mulFU->ROB */
-  else if(stage_num == mulFU){
-    // similar to intFU
+    /* copy to cpu->broadcast */
+    if(stage->entry.rd != UNUSED_REG_INDEX){
+      assert(stage->entry.rd_tag != UNUSED_REG_INDEX);
+      assert(stage->entry.buffer_valid == VALID);
+      cpu->broadcast.data_mulFU = stage->entry.buffer;
+      cpu->broadcast.tag_mulFU = stage->entry.rd_tag;
+    }
   }
   /* LSQ->MEM */
   else if(stage_num == LSQ){
@@ -595,8 +632,9 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
   /* MEM->ROB, MEM->broadcast */
   else if(stage_num == MEM ){
   }
-  /* */
-  else if(stage_num == ROB){
+  /* ROB */
+  else {  // if(stage_num == ROB){
+    assert(0);
     // nothing..
   }
 

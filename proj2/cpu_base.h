@@ -203,6 +203,7 @@ void print_stage_content(char* name, CPU_Stage* stage);
 void print_all_stage(CPU_Stage* stages); /* old */
 void print_all_stage(APEX_CPU* cpu);
 void print_regs(int* regs, int* regs_valid);
+void print_regs(APEX_CPU* cpu);
 void print_data_memory(int* data_memory);
 void print_flag_reg(uint32_t* flag_reg);
 

@@ -144,13 +144,13 @@ APEX_cpu_run(APEX_CPU* cpu)
 
     cpu->clock++;
     ROB_run(cpu);
+    // LSQ_run(cpu);
+    // MEM_run(cpu);
     intFU_run(cpu);
+    mulFU_run(cpu);
     IQ_run(cpu);
     DRD_run(cpu);
     Fetch_run(cpu);
-    // mulFU_run(cpu);
-    // LSQ_run(cpu);
-    // MEM_run(cpu);
 
     if (ENABLE_DEBUG_MESSAGES) {
       printf("================================================================================\n");
@@ -244,6 +244,7 @@ DRD_run(APEX_CPU* cpu)
 {
   int stage_num = DRD;
   DRD_t* stage = &cpu->drd;
+  CPU_Stage_base* entry = &stage->entry;
   stage->stalled = UNSTALLED;
 
   /* only set by last stage, if it's new business, start a new busy clock */
@@ -253,6 +254,21 @@ DRD_run(APEX_CPU* cpu)
 
   /* do the job */
   if(stage->busy > BUSY_DONE){
+    /* set rs1_tag rs2_tag from RAT */
+    if(entry->rs1 != UNUSED_REG_INDEX){
+      if(cpu->rat[entry->rs1] == UNUSED_REG_INDEX){
+        fprintf(stderr, "using un-initial register\n");
+        assert(0);
+      }
+      entry->rs1_tag = cpu->rat[entry->rs1];
+    }
+    if(entry->rs2 != UNUSED_REG_INDEX){
+      if(cpu->rat[entry->rs2] == UNUSED_REG_INDEX){
+        fprintf(stderr, "using un-initial register\n");
+        assert(0);
+      }
+      entry->rs2_tag = cpu->rat[entry->rs2];
+    }
     /* fetch */
     fetchValue(cpu, &stage->entry);
     /* renaming, set up new most recently tag */
@@ -451,7 +467,7 @@ intFU_run(APEX_CPU* cpu)
   int isForwarded = FAILED;
   /* it's done, try to copy data to nextStage */
   if(stage->busy==BUSY_DONE){
-    // TODO: intFU->ROB
+    // intFU->ROB, intFU->broadcast
     isForwarded = copyStagetoNext(cpu, stage_num);
   }
   // TODO_2: it seems no reason that intFU will stall for ROB is stalled or busy
@@ -476,7 +492,7 @@ intFU_run(APEX_CPU* cpu)
 
 int
 mulFU_run(APEX_CPU* cpu){
-  int stage_num = intFU;
+  int stage_num = mulFU;
   MulFU_t* stage = &cpu->mulFU;
   CPU_Stage_base* entry = &stage->entry;
   stage->stalled = UNSTALLED;
@@ -490,6 +506,7 @@ mulFU_run(APEX_CPU* cpu){
   if(stage->busy > BUSY_DONE){
     if(strcmp(entry->opcode, "MUL")==0){
       entry->buffer = entry->rs1_value * entry->rs2_value;
+      entry->buffer_valid = VALID;
       // if(stage->buffer == 0) cpu->flags |= 0x1;
       // else cpu->flags &= ~0x1;
     }
@@ -504,11 +521,10 @@ mulFU_run(APEX_CPU* cpu){
   int isForwarded = FAILED;
   /* it's done, try to copy data to nextStage */
   if(stage->busy==BUSY_DONE){
-    // TODO: mulFU->ROB
+    // mulFU->ROB, mulFU->broadcast
     isForwarded = copyStagetoNext(cpu, stage_num);
   }
   // TODO_2: it seems no reason that intFU will stall for ROB is stalled or busy
-  // besides it is always one circle delay
   /* business hasn't been done, do it in next circle
    * or this is BUSY_INITIAL, don't need to do process
    */
@@ -605,6 +621,7 @@ COMMAND:
       strcmp(command, "init")==0 ||
       strcmp(command, "r")==0
     ){
+    /*
     cpu->clock=0;
     cpu->pc = PC_START_INDEX;
     memset(cpu->regs, 0, NUM_REGS*sizeof(cpu->regs[0]));
@@ -613,6 +630,8 @@ COMMAND:
     memset(cpu->data_memory, 0, sizeof(int) * DATA_MEM_SIZE);
     cpu->ins_completed=0;
     printf("initial complete.\n");
+    */
+    printf("TODO_3\n");
     return 0;
   }
 
@@ -627,9 +646,9 @@ COMMAND:
   else if(strcmp(command, "display")==0 ||
       strcmp(command, "p")==0
       ){
-    print_all_stage(cpu->stage);
-    print_flag_reg(&cpu->flags);
-    print_regs(cpu->regs, cpu->regs_valid);
+    // print_all_stage(cpu->stage); // don't need to
+    // print_flag_reg(&cpu->flags);
+    print_regs(cpu);
     print_data_memory(cpu->data_memory);
     goto COMMAND;
   }
