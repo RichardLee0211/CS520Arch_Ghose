@@ -48,6 +48,7 @@ typedef unsigned int uint;
 #define BUSY 1
 #define UNBUSY 0
 #define BUSY_NEW 10
+#define BUSY_INITIAL -1
 #define BUSY_DEFAULT 1
 #define BUSY_MUL_DELAY 2
 #define BUSY_MEM_DELAY 3
@@ -63,6 +64,7 @@ typedef unsigned int uint;
 #define OPCODE_SIZE 8
 
 #define FAILED -1 // for getValidEntry functions,
+#define SUCCEED 0
 
 /* Set this flag to 1 to enable debug messages */
 #define ENABLE_DEBUG_MESSAGES 1

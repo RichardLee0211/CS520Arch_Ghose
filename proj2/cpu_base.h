@@ -88,14 +88,12 @@ struct CPU_Stage_base
 };
 
 struct Fetch_t{
-  // CPU_Stage_base latch;
   CPU_Stage_base entry;
   int busy;
   int stalled;
 };
 
 struct DRD_t{
-  // CPU_Stage_base latch;
   CPU_Stage_base entry;
   int busy;
   int stalled;
@@ -108,14 +106,12 @@ struct IQ_t{
 };
 
 struct IntFU_t{
-  // CPU_Stage_base latch;
   CPU_Stage_base entry;
   int busy;
   int stalled;
 };
 
 struct MulFU_t{
-  // CPU_Stage_base latch;
   CPU_Stage_base entry;
   int busy;
   int stalled;
@@ -123,6 +119,12 @@ struct MulFU_t{
 
 struct LSQ_t{
   std::deque<CPU_Stage_base> entry; // size should not greater then NUM_LSQ_ENTRY
+  int busy;
+  int stalled;
+};
+
+struct MEM_t{
+  CPU_Stage_base entry;
   int busy;
   int stalled;
 };
@@ -171,11 +173,12 @@ struct APEX_CPU
   CPU_Stage stage[NUM_STAGES]; /* Array of 5 CPU_stage */
   Fetch_t fetch_stage;
   DRD_t drd;
-  ROB_t rob;
-  LSQ_t lsq;
   IQ_t iq;
   IntFU_t intFU;
   MulFU_t mulFU;
+  LSQ_t lsq;
+  MEM_t mem;
+  ROB_t rob;
 
   Broadcast_t broadcast;
 
@@ -206,7 +209,10 @@ void print_flag_reg(uint32_t* flag_reg);
 int Fetch_stage_init(Fetch_t* stage);
 int DRD_init(DRD_t* stage);
 int IQ_init(IQ_t *stage);
-int ROB_init(ROB_t* stage);
 int IntFU_init(IntFU_t* stage);
+int MulFU_init(MulFU_t* stage);
+int LSQ_init(LSQ_t* stage); // TODO: later
+int MEM_init(MEM_t* stage); // TODO: later
+int ROB_init(ROB_t* stage);
 
 #endif /* CPU_BASE_H */

@@ -131,43 +131,58 @@ print_instruction(CPU_Stage_base* stage)
 }
 
 void print_Fetch_stage(Fetch_t* stage){
-  printf("%-15s: pc(%04d) ", "Fetch", stage->entry.pc);
+  printf("%-15s: pc(%04d,%03d,%1d) ", "Fetch",
+      stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
   print_instruction(&stage->entry);
   printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
 }
 
 void print_DRD(DRD_t* stage){
-  printf("%-15s: pc(%04d) ", "DRD", stage->entry.pc);
+  printf("%-15s: pc(%04d,%03d,%1d) ", "DRD",
+      stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
   print_instruction(&stage->entry);
   printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
 }
 
 void print_IQ(IQ_t* stage){
+  int empty = VALID;
   for(int i{0}; i<NUM_IQ_ENTRY; ++i){
     if(stage->entry[i].valid == INVALID){
-      printf("%-15s[%02d]: pc(%04d) ", "IQ", i, stage->entry[i].pc);
+      printf("%10s[%02d] : pc(%04d,%03d,%1d) ", "IQ", i,
+          stage->entry[i].pc, stage->entry[i].dispatch_cycle, stage->entry[i].CFID);
       print_instruction(&stage->entry[i]);
+      printf("\n");
+      empty = INVALID;
     }
+  }
+  if(empty == VALID){
+    printf("%15s: %s\n", "IQ ", "empty");
   }
 }
 
 void print_ROB(ROB_t* stage){
+  if(stage->entry.size()==0){
+    printf("%15s: %s\n", "ROB ", "empty");
+    return;
+  }
   for(auto i: stage->entry){
-    printf("%-15s: pc(%04d) ", "ROB",  i.pc);
+    printf("%15s: pc(%04d,%03d,%1d) ", "ROB ",  i.pc, i.dispatch_cycle, i.CFID);
     // TODO: ??
     print_instruction(&i);
-
+    printf("\n");
   }
 }
 
 void print_intFU(IntFU_t* stage){
-  printf("%-15s: pc(%04d) ", "DRD", stage->entry.pc);
+  printf("%-15s: pc(%04d,%03d,%1d) ", "intFU",
+      stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
   print_instruction(&stage->entry);
   printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
 }
 
 void print_mulFU(MulFU_t* stage){
-  printf("%-15s: pc(%04d) ", "DRD", stage->entry.pc);
+  printf("%-15s: pc(%04d,%03d,%1d) ", "mulFU",
+      stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
   print_instruction(&stage->entry);
   printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
 }
@@ -196,9 +211,15 @@ void print_all_stage(CPU_Stage* stages){
 
 /* new */
 void print_all_stage(APEX_CPU* cpu){
-  // print_ROB(&cpu->rob);
-  // print_intFU(&cpu->intFU);
-  print_IQ(&cpu->iq);
+  print_ROB(&cpu->rob); printf("\n");
+
+  // print_MEM(&cpu->mem);
+  // print_LSQ(&cpu->lsq); printf("\n");
+
+  print_intFU(&cpu->intFU);
+  // print_mulFU(&cpu->mulFU);
+  print_IQ(&cpu->iq); printf("\n");
+
   print_DRD(&cpu->drd);
   print_Fetch_stage(&cpu->fetch_stage);
 }
@@ -253,13 +274,14 @@ int stage_base_init(CPU_Stage_base* entry){
   // set all most everything to -1
   memset(entry, 0xFF, sizeof(*entry));
   memset(entry->opcode, 0x00, OPCODE_SIZE*sizeof(char));
+  entry->pc = 0;
   entry->imm = UNUSED_IMM;
   return 0;
 }
 
 int Fetch_stage_init(Fetch_t* stage){
   stage_base_init(&stage->entry);
-  stage->busy = BUSY_DONE;
+  stage->busy = BUSY_INITIAL;
   stage->stalled = UNSTALLED;
   return 0;
 }
@@ -267,21 +289,17 @@ int Fetch_stage_init(Fetch_t* stage){
 int DRD_init(DRD_t* stage){
   // stage_base_init(&stage->latch);
   stage_base_init(&stage->entry);
-  stage->busy = BUSY_DONE;
+  stage->busy = BUSY_INITIAL;
   stage->stalled = UNSTALLED;
   return 0;
 }
 
 int IQ_init(IQ_t *stage){
-  for(int i{0}; i<NUM_IQ_ENTRY; ++i) { stage_base_init(&stage->entry[i]); }
-  stage->busy = BUSY_DONE;
-  stage->stalled = UNSTALLED;
-  return 0;
-}
-
-int ROB_init(ROB_t* stage){
-  // stage->entry; // std::deque will take care of it
-  stage->busy = BUSY_DONE;
+  for(int i{0}; i<NUM_IQ_ENTRY; ++i) {
+    stage_base_init(&stage->entry[i]);
+    stage->entry[i].valid = VALID;
+  }
+  stage->busy = BUSY_INITIAL;
   stage->stalled = UNSTALLED;
   return 0;
 }
@@ -289,10 +307,25 @@ int ROB_init(ROB_t* stage){
 int IntFU_init(IntFU_t* stage){
   // stage_base_init(&stage->latch);
   stage_base_init(&stage->entry);
-  stage->busy = BUSY_DONE;
+  stage->busy = BUSY_INITIAL;
   stage->stalled = UNSTALLED;
   return 0;
 }
+
+int MulFU_init(MulFU_t* stage){
+  stage_base_init(&stage->entry);
+  stage->busy = BUSY_INITIAL;
+  stage->stalled = UNSTALLED;
+  return 0;
+}
+
+int ROB_init(ROB_t* stage){
+  // stage->entry; // std::deque will take care of it
+  stage->busy = BUSY_INITIAL;
+  stage->stalled = UNSTALLED;
+  return 0;
+}
+
 
 /* have some basic function here */
 /* old */
@@ -436,9 +469,22 @@ int LSQ_getValidEntry(APEX_CPU* cpu){
     return FAILED;
 }
 
+CPU_Stage_base*
+ROB_searchEntry(APEX_CPU* cpu, int dispatch_cycle){
+  if(dispatch_cycle == INVALID) return NULL;
+  assert(cpu->rob.entry.size()>0);
+  CPU_Stage_base* addr=NULL;
+  for(auto i: cpu->rob.entry){
+    if(i.dispatch_cycle == dispatch_cycle){
+      addr = &i;
+    }
+  }
+  return addr;
+}
+
 /*
  * usually isForwarded receive return value
- * 0 means success
+ * SUCCEED(0) means success
  * FAILED means need to wait
  */
 int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
@@ -454,7 +500,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
       return FAILED;
     }
     nextStage->entry= stage->entry;
-    return 0;
+    return SUCCEED;
   }
   /* dispatch logic, DRD->... */
   else if(stage_num == DRD){
@@ -475,6 +521,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
         cpu->iq.entry[IQ_index].valid = INVALID;
         cpu->rob.entry.push_back(stage->entry);
         cpu->lsq.entry.push_back(stage->entry);
+        return SUCCEED;
       }
       else{
         return FAILED;
@@ -492,6 +539,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
         int IQ_index = IQ_getValidEntry(cpu);
         cpu->iq.entry[IQ_index] = stage->entry;
         cpu->rob.entry.push_back(stage->entry);
+        return SUCCEED;
       }
       else{
         return FAILED;
@@ -509,7 +557,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
         return FAILED;
       }
       nextStage->entry= *entry;
-      return 0;
+      return SUCCEED;
     }
     /* others go to intFU */
     else{
@@ -518,16 +566,23 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
         return FAILED;
       }
       nextStage->entry= *entry;
-      return 0;
+      return SUCCEED;
     }
   }
   /* intFU->broadcast, intFU->ROB */
   else if(stage_num == intFU){
     /* set ROB entry buffer and valid bit */
+    IntFU_t* stage = &cpu->intFU;
+    // ROB_t* nextStage = &cpu->rob;
+    stage->entry.completed = VALID;
+    CPU_Stage_base* ROB_entry_ptr = ROB_searchEntry(cpu, stage->entry.dispatch_cycle);
+    if(ROB_entry_ptr != NULL){
+      *ROB_entry_ptr = stage->entry;
+    }
   }
   /* mulFU->broadcast, mulFU->ROB */
   else if(stage_num == mulFU){
-
+    // similar to intFU
   }
   /* LSQ->MEM */
   else if(stage_num == LSQ){

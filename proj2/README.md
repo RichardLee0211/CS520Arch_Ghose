@@ -136,3 +136,70 @@ std::deque
 void myPerror(const char* errorMessage){
   fprintf(stderr, errorMessage); // potential insecure
 }
+
+#### a pipeline design
+code change over development, it could hardly tell original design attention
+```seudocode
+  // BUSY_NEW is set by last stage when last stage successful copy data to this stage
+  IF busy == BUSY_NEW
+    busy = BUSY_DELAY
+
+  IF busy > BUSY_DONE(1)
+    // do the job
+    busy--
+
+  IF busy == BUSY_DONE
+    // try to copy to next stage
+    if success
+      set nextStage->busy=BUSY_NEW
+```
+
+original look
+```shell
+typein command: initialize(r), simulate(sim) <n>, display(p), quit(q)
+(apex) >>n
+--------------------------------
+after Clock Cycle #: 4
+--------------------------------
+ROB            : pc(4000) MOVC,R1[U00 -1],#1
+ROB            : pc(4004) MOVC,R2[U01 -1],#2
+intFU          : pc(4000) MOVC,R1[U00 -1],#1  UNSTALLED -1
+IQ         [00]: pc(4004) MOVC,R2[U01 -1],#2
+DRD            : pc(4008) MOVC,R3[U-1 -1],#3  UNSTALLED 10
+Fetch          : pc(4012) ADD,R1[U-1 -1],R2[U-1 -1],R2[U-1 -1]  UNSTALLED 10
+
+typein command: initialize(r), simulate(sim) <n>, display(p), quit(q)
+(apex) >>quit
+
+```
+
+what I want
+```shell
+typein command: initialize(r), simulate(sim) <n>, display(p), quit(q)
+(apex) >>n
+================================
+after Clock Cycle #: 4
+================================
+           ROB : pc(4000,124,2) MOVC,R1[U00 -1],#1
+           ROB : pc(4004,124,2) MOVC,R2[U01 -1],#2
+
+MEM            : pc(4000,124,2) STORE,R1[U00 -1],#1  UNSTALLED -1
+           LSQ : pc(4000,124,2) LOAD,R1[U00 -1],#1  UNSTALLED -1
+           LSQ : pc(4000,124,2) LOAD,R1[U00 -1],#1  UNSTALLED -1
+           LSQ : pc(4000,124,2) STORE,R1[U00 -1],#1  UNSTALLED -1
+           LSQ : pc(4000,124,2) STORE,R1[U00 -1],#1  UNSTALLED -1
+
+intFU          : pc(4000,124,2) MOVC,R1[U00 -1],#1  UNSTALLED -1
+mulFU          : pc(4000,124,2) MOVC,R1[U00 -1],#1  UNSTALLED -1
+         IQ[00]: pc(4004,124,2) MOVC,R2[U01 -1],#2
+         IQ[02]: pc(4004,124,2) MOVC,R2[U01 -1],#2
+         IQ[04]: pc(4004,124,2) MOVC,R2[U01 -1],#2
+         IQ[03]: pc(4004,124,2) MOVC,R2[U01 -1],#2
+
+DRD            : pc(4008,124,2) MOVC,R3[U-1 -1],#3  UNSTALLED 10
+Fetch          : pc(4012,124,2) ADD,R1[U-1 -1],R2[U-1 -1],R2[U-1 -1]  UNSTALLED 10
+
+typein command: initialize(r), simulate(sim) <n>, display(p), quit(q)
+(apex) >>quit
+
+```

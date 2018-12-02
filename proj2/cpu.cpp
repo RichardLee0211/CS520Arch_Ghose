@@ -68,8 +68,11 @@ APEX_cpu_init(const char* filename)
   Fetch_stage_init(&cpu->fetch_stage);
   DRD_init(&cpu->drd);
   IQ_init(&cpu->iq);
-  ROB_init(&cpu->rob);
   IntFU_init(&cpu->intFU);
+  MulFU_init(&cpu->mulFU);
+  // LSQ_init(&cpu->lsq);
+  // MEM_init(&cpu->MEM);
+  ROB_init(&cpu->rob);
 
   memset(cpu->data_memory, 0xFF, sizeof(int) * DATA_MEM_SIZE); // set to -1 for debug purpose
   cpu->ins_completed=0;
@@ -189,10 +192,17 @@ Fetch_run(APEX_CPU* cpu)
     stage->busy--;
   }
 
-  int isForwarded = -1;
+  int isForwarded = FAILED;
   /* it's done, try to copy data to nextStage */
   if(stage->busy==BUSY_DONE){
     isForwarded = copyStagetoNext(cpu, stage_num);
+    /* set nextStage to BUSY_NEW, next circle nextStage could start a new clock */
+    if(isForwarded == SUCCEED)
+      cpu->drd.busy = BUSY_NEW;
+  }
+  /* if it's initial, don't need to copy to next */
+  else if(stage->busy == BUSY_INITIAL){
+    isForwarded = SUCCEED;
   }
   /* business hasn't been done, do it in next circle */
   else{
@@ -203,10 +213,8 @@ Fetch_run(APEX_CPU* cpu)
   if(isForwarded == FAILED){
     stage->stalled = STALLED;
   }
-  /* forward success */
+  /* forward success or initial, fetch instrn from code_memory */
   else{
-    /* set nextStage to BUSY_NEW, next circle nextStage could start a new clock */
-    cpu->drd.busy = BUSY_NEW;
     /* fetch next work from code_memory */
     stage->busy = BUSY_NEW;
     stage->entry.pc = cpu->pc;
@@ -336,14 +344,174 @@ IQ_run(APEX_CPU* cpu){
 int
 intFU_run(APEX_CPU* cpu)
 {
-  cpu++;
+  int stage_num = intFU;
+  IntFU_t* stage = &cpu->intFU;
+  CPU_Stage_base* entry = &stage->entry;
+  stage->stalled = UNSTALLED;
+
+  /* only set by last stage, if it's new business, start a new busy clock */
+  if(stage->busy == BUSY_NEW){
+    stage->busy = BUSY_DEFAULT;
+  }
+
+  /* do the job */
+  if(stage->busy > BUSY_DONE){
+    // stage->entry.opcode
+    if (strcmp(entry->opcode, "STORE") == 0 ||
+        strcmp(entry->opcode, "LOAD") == 0
+        ) {
+      entry->mem_address = entry->rs2_value + entry->imm; // TODO_3: assume it doesn't excess the boundary
+    }
+
+    else if(strcmp(entry->opcode, "MOVC")==0){
+      entry->buffer = entry->imm;
+    }
+    else if (strcmp(entry->opcode, "ADD") == 0) {
+      entry->buffer = entry->rs1_value + entry->rs2_value;
+      // if(entry->buffer == 0) cpu->flags |= 0x1;
+      // else cpu->flags &= ~0x1;
+    }
+    else if (strcmp(entry->opcode, "SUB") == 0) {
+      entry->buffer = entry->rs1_value - entry->rs2_value;
+      // if(stage->buffer == 0) cpu->flags |= 0x1;
+      // else cpu->flags &= ~0x1;
+    }
+    else if (strcmp(entry->opcode, "MUL") == 0) {
+      fprintf(stderr, "have MUL instrn in intFU stage\n");
+      assert(0);
+    }
+    else if (strcmp(entry->opcode, "AND") == 0) {
+      entry->buffer = entry->rs1_value & entry->rs2_value;
+    }
+    else if (strcmp(entry->opcode, "OR") == 0) {
+      entry->buffer = entry->rs1_value | entry->rs2_value;
+    }
+    else if (strcmp(entry->opcode, "EX-OR") == 0) {
+      entry->buffer = entry->rs1_value ^ entry->rs2_value;
+    }
+    else if(strcmp(entry->opcode, "JUMP")==0 ||
+        strcmp(entry->opcode, "JMP") ==0
+        ){
+      /*
+      stage->buffer= stage->rs1_value + stage->imm;
+      cpu->pc = stage->pc + stage->buffer;
+      if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
+      if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
+      setStagetoNOPE(&cpu->stage[F]);
+      setStagetoNOPE(&cpu->stage[DRF]);
+      */
+    }
+    else if(strcmp(entry->opcode, "JAL")==0){
+      // TODO
+    }
+
+    else if(strcmp(entry->opcode, "BZ")==0){
+      /*
+      if((cpu->flags&0x1) == 0x1){
+        cpu->pc = stage->pc + stage->imm;
+        if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
+        if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
+        setStagetoNOPE(&cpu->stage[F]);
+        setStagetoNOPE(&cpu->stage[DRF]);
+      }
+      */
+    }
+    else if(strcmp(entry->opcode, "BNZ")==0){
+      /*
+      if((cpu->flags&0x1) == 0x0){
+        cpu->pc = stage->pc + stage->imm;
+        if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
+        if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
+        setStagetoNOPE(&cpu->stage[F]);
+        setStagetoNOPE(&cpu->stage[DRF]);
+      }
+      */
+    }
+    else{
+      // NOP, unknown instruction
+    }
+    /* finish job */
+    stage->busy--;
+  }
+
+  int isForwarded = FAILED;
+  /* it's done, try to copy data to nextStage */
+  if(stage->busy==BUSY_DONE){
+    // TODO: intFU->ROB
+    isForwarded = copyStagetoNext(cpu, stage_num);
+  }
+  // TODO_2: it seems no reason that intFU will stall for ROB is stalled or busy
+  // besides it is always one circle delay
+  /* business hasn't been done, do it in next circle */
+  else{
+    return 0;
+  }
+
+  /* forward failed */
+  if(isForwarded == FAILED){
+    stage->stalled = STALLED;
+  }
+  /* forward success, wait last stage to push new data */
+  else{
+    // stage->busy == BUSY_DONE check
+    // stage->stalled = UNSTALLED check
+    // last stage could forward new data and set BUSY_NEW flag
+  }
   return 0;
 }
 
 int
 mulFU_run(APEX_CPU* cpu){
-  // TODO:
-  cpu++;
+  int stage_num = intFU;
+  MulFU_t* stage = &cpu->mulFU;
+  CPU_Stage_base* entry = &stage->entry;
+  stage->stalled = UNSTALLED;
+
+  /* only set by last stage, if it's new business, start a new busy clock */
+  if(stage->busy == BUSY_NEW){
+    stage->busy = BUSY_MUL_DELAY;
+  }
+
+  /* do the job */
+  if(stage->busy > BUSY_DONE){
+    if(strcmp(entry->opcode, "MUL")==0){
+      entry->buffer = entry->rs1_value * entry->rs2_value;
+      // if(stage->buffer == 0) cpu->flags |= 0x1;
+      // else cpu->flags &= ~0x1;
+    }
+    else{
+      fprintf(stderr, "got other instrn in mulFU stage\n");
+      assert(0);
+    }
+    /* finish job */
+    stage->busy--;
+  }
+
+  int isForwarded = FAILED;
+  /* it's done, try to copy data to nextStage */
+  if(stage->busy==BUSY_DONE){
+    // TODO: mulFU->ROB
+    isForwarded = copyStagetoNext(cpu, stage_num);
+  }
+  // TODO_2: it seems no reason that intFU will stall for ROB is stalled or busy
+  // besides it is always one circle delay
+  /* business hasn't been done, do it in next circle
+   * or this is BUSY_INITIAL, don't need to do process
+   */
+  else{
+    return 0;
+  }
+
+  /* forward failed */
+  if(isForwarded == FAILED){
+    stage->stalled = STALLED;
+  }
+  /* forward success, wait last stage to push new data */
+  else{
+    // stage->busy == BUSY_DONE check
+    // stage->stalled = UNSTALLED check
+    // last stage could forward new data and set BUSY_NEW flag
+  }
   return 0;
 }
 
@@ -365,9 +533,20 @@ MEM_run(APEX_CPU* cpu)
   return 0;
 }
 
+/*
+ * the delay module doesn't apply to ROB, do the work directly
+ */
 int
 ROB_run(APEX_CPU* cpu){
-  cpu++;
+  std::deque<CPU_Stage_base>* entry = &cpu->rob.entry;
+  if(entry->size()>0){
+    auto it = entry->front();
+    if(it.completed==VALID){
+      // TODO: update cpu->r_rat[rd]
+      // update cpu->urf_valid[rat[rd]]
+      // cpu->urf[rat[rd]]
+    }
+  }
   return 0;
 }
 
