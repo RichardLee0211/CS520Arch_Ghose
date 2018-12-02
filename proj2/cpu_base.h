@@ -55,7 +55,7 @@ typedef struct CPU_Stage
 
 struct CPU_Stage_base
 {
-  int valid; // work for IQ entry. LSQ and ROB using deque
+  int valid; // work for IQ entry. LSQ and ROB using std::deque
   int readyforIssue; // work for IQ entry, set to VALID when ready for issue
   int completed; // work for ROB entry when check for retirement, set to VALID when ready for retirement
 
@@ -153,11 +153,11 @@ struct APEX_CPU
   int clock;  /* Clock cycles elasped */
   int pc; /* Current program counter */
 
-  // TODO: maybe remove it
+  // TODO: need to remove it
   uint32_t flags; /* 32 bits of flags, flags&0x1 is zero flag */
 
   /* TODO: could be removed */
-  int regs[NUM_REGS]; /* Integer register file */ // wenchen: make it 33 and regs[0] is not used
+  int regs[NUM_REGS]; /* Integer register file */
   int regs_valid[NUM_REGS];
 
   int rat[NUM_REGS]; /* register alias table */
@@ -165,8 +165,8 @@ struct APEX_CPU
 
   /* unify regster file */
   int urf[NUM_UREGS];
-  int urf_valid[NUM_UREGS]; // function like free list
-  int urf_z_flag[NUM_UREGS];
+  int urf_valid[NUM_UREGS];       // function like free list
+  int urf_z_flag[NUM_UREGS]; // remove, z_flag process is headle by CFIDs and CFIO
   // int urf_free[NUM_UREGS];
 
   /* fetch, DRD, IQ, ROB, intFU, mulFU */

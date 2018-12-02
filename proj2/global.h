@@ -20,8 +20,8 @@ typedef unsigned int uint;
  */
 
 /* wenchen regster valid bits */
-#define NUM_REGS 32 /* R0~R31, require R0~R15 */
-#define NUM_UREGS 40
+#define NUM_REGS 16 /* require R0~R15 */
+#define NUM_UREGS 40 /* at least two times of NUM_REGS, one for most recent, one for commited */
 
 /* valid flag status, because they are easy to initial with memset */
 #define VALID 0

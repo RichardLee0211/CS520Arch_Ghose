@@ -165,7 +165,7 @@ void print_ROB(ROB_t* stage){
     printf("%15s: %s\n", "ROB ", "empty");
     return;
   }
-  for(auto i: stage->entry){
+  for(auto& i: stage->entry){
     printf("%15s: pc(%04d,%03d,%1d) ", "ROB ",  i.pc, i.dispatch_cycle, i.CFID);
     // TODO: ??
     print_instruction(&i);
@@ -365,8 +365,9 @@ int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
       assert(0);
     }
     entry->rs1_tag = cpu->rat[entry->rs1];
-    /* lastest instance could in ROB and commited value */
-    if(cpu->urf_valid[entry->rs1_tag] == VALID){
+    /* lastest instance could in ROB and
+     * commited value to urf and r_rat[rs1] point to it*/
+    if(entry->rs1_tag == cpu->r_rat[entry->rs1]){
       entry->rs1_value = cpu->urf[entry->rs1_tag];
       entry->rs1_value_valid = VALID;
     }
@@ -398,7 +399,7 @@ int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
     }
     entry->rs2_tag = cpu->rat[entry->rs2];
     /* lastest instance could in ROB and commited value */
-    if(cpu->urf_valid[entry->rs2_tag] == VALID){
+    if(entry->rs2_tag == cpu->r_rat[entry->rs2]){
       entry->rs2_value = cpu->urf[entry->rs2_tag];
       entry->rs2_value_valid = VALID;
     }
@@ -474,9 +475,10 @@ ROB_searchEntry(APEX_CPU* cpu, int dispatch_cycle){
   if(dispatch_cycle == INVALID) return NULL;
   assert(cpu->rob.entry.size()>0);
   CPU_Stage_base* addr=NULL;
-  for(auto i: cpu->rob.entry){
+  for(auto& i: cpu->rob.entry){
     if(i.dispatch_cycle == dispatch_cycle){
       addr = &i;
+      break;
     }
   }
   return addr;
@@ -547,6 +549,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
     }
   }
   /* IQ->intFU or IQ->mulFU */
+  /* select */
   else if(stage_num == IQ){
     IQ_t* stage = &cpu->iq;
     CPU_Stage_base* entry = &stage->entry[index];
@@ -557,6 +560,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
         return FAILED;
       }
       nextStage->entry= *entry;
+      nextStage->busy = BUSY_NEW;
       return SUCCEED;
     }
     /* others go to intFU */
@@ -566,6 +570,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
         return FAILED;
       }
       nextStage->entry= *entry;
+      nextStage->busy = BUSY_NEW;
       return SUCCEED;
     }
   }
@@ -573,10 +578,9 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
   else if(stage_num == intFU){
     /* set ROB entry buffer and valid bit */
     IntFU_t* stage = &cpu->intFU;
-    // ROB_t* nextStage = &cpu->rob;
-    stage->entry.completed = VALID;
     CPU_Stage_base* ROB_entry_ptr = ROB_searchEntry(cpu, stage->entry.dispatch_cycle);
     if(ROB_entry_ptr != NULL){
+      stage->entry.completed = VALID;
       *ROB_entry_ptr = stage->entry;
     }
   }

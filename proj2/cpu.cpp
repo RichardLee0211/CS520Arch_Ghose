@@ -142,6 +142,7 @@ APEX_cpu_run(APEX_CPU* cpu)
       break;
     }
 
+    cpu->clock++;
     ROB_run(cpu);
     intFU_run(cpu);
     IQ_run(cpu);
@@ -150,12 +151,11 @@ APEX_cpu_run(APEX_CPU* cpu)
     // mulFU_run(cpu);
     // LSQ_run(cpu);
     // MEM_run(cpu);
-    cpu->clock++;
 
     if (ENABLE_DEBUG_MESSAGES) {
-      printf("--------------------------------\n");
+      printf("================================================================================\n");
       printf("after Clock Cycle #: %d\n", cpu->clock);
-      printf("--------------------------------\n");
+      printf("================================================================================\n");
       print_all_stage(cpu);
     }
 
@@ -255,7 +255,7 @@ DRD_run(APEX_CPU* cpu)
   if(stage->busy > BUSY_DONE){
     /* fetch */
     fetchValue(cpu, &stage->entry);
-    /* renaming */
+    /* renaming, set up new most recently tag */
     int urf_index = URF_getValidIndex(cpu);
     if(urf_index == FAILED){
       stage->stalled = STALLED;
@@ -302,25 +302,32 @@ IQ_run(APEX_CPU* cpu){
 
   /* fetch value for source register, and set readyforIssue flag */
   for(int i{0}; i<NUM_IQ_ENTRY; ++i){
-    fetchValue(cpu, &stage->entry[i]);
+    if(stage->entry[i].valid == INVALID)
+      fetchValue(cpu, &stage->entry[i]);
   }
 
-  /* check readyforIssue flag, and select first issuable entry */
+  /* check readyforIssue flag, and select oldest issuable entry */
   int IQ_index_tointFU{UNUSED_INDEX};
   int IQ_index_tomulFU{UNUSED_INDEX};
   for(int i{0}; i<NUM_IQ_ENTRY; ++i){
     if(stage->entry[i].readyforIssue == VALID){
-      if(strcmp(stage->entry[i].opcode, "MUL")==0 &&
-         IQ_index_tomulFU == UNUSED_INDEX
-        ){
-        IQ_index_tomulFU = i;
+      /* mul go to mulFU */
+      if(strcmp(stage->entry[i].opcode, "MUL")==0){
+        if(IQ_index_tomulFU == UNUSED_INDEX ||
+          stage->entry[i].dispatch_cycle < stage->entry[IQ_index_tomulFU].dispatch_cycle
+          ){
+          IQ_index_tomulFU = i;
+        }
       }
-      else if(IQ_index_tointFU == UNUSED_INDEX){
-        IQ_index_tointFU = i;
+      /* other instrn go to intFU */
+      else {
+        if(IQ_index_tointFU == UNUSED_INDEX ||
+          stage->entry[i].dispatch_cycle < stage->entry[IQ_index_tointFU].dispatch_cycle
+          ){
+          IQ_index_tointFU = i;
+        }
       }
     }
-    if(IQ_index_tointFU != UNUSED_INDEX && IQ_index_tomulFU != UNUSED_INDEX)
-      break;
   }
 
   /* copy to intFU and mulFU */
@@ -361,18 +368,22 @@ intFU_run(APEX_CPU* cpu)
         strcmp(entry->opcode, "LOAD") == 0
         ) {
       entry->mem_address = entry->rs2_value + entry->imm; // TODO_3: assume it doesn't excess the boundary
+      entry->mem_address_valid = VALID;
     }
 
     else if(strcmp(entry->opcode, "MOVC")==0){
       entry->buffer = entry->imm;
+      entry->buffer_valid = VALID;
     }
     else if (strcmp(entry->opcode, "ADD") == 0) {
       entry->buffer = entry->rs1_value + entry->rs2_value;
+      entry->buffer_valid = VALID;
       // if(entry->buffer == 0) cpu->flags |= 0x1;
       // else cpu->flags &= ~0x1;
     }
     else if (strcmp(entry->opcode, "SUB") == 0) {
       entry->buffer = entry->rs1_value - entry->rs2_value;
+      entry->buffer_valid = VALID;
       // if(stage->buffer == 0) cpu->flags |= 0x1;
       // else cpu->flags &= ~0x1;
     }
@@ -382,12 +393,15 @@ intFU_run(APEX_CPU* cpu)
     }
     else if (strcmp(entry->opcode, "AND") == 0) {
       entry->buffer = entry->rs1_value & entry->rs2_value;
+      entry->buffer_valid = VALID;
     }
     else if (strcmp(entry->opcode, "OR") == 0) {
       entry->buffer = entry->rs1_value | entry->rs2_value;
+      entry->buffer_valid = VALID;
     }
     else if (strcmp(entry->opcode, "EX-OR") == 0) {
       entry->buffer = entry->rs1_value ^ entry->rs2_value;
+      entry->buffer_valid = VALID;
     }
     else if(strcmp(entry->opcode, "JUMP")==0 ||
         strcmp(entry->opcode, "JMP") ==0
@@ -539,12 +553,29 @@ MEM_run(APEX_CPU* cpu)
 int
 ROB_run(APEX_CPU* cpu){
   std::deque<CPU_Stage_base>* entry = &cpu->rob.entry;
-  if(entry->size()>0){
-    auto it = entry->front();
+  while(entry->size()>0){
+    auto& it = entry->front();
     if(it.completed==VALID){
-      // TODO: update cpu->r_rat[rd]
-      // update cpu->urf_valid[rat[rd]]
-      // cpu->urf[rat[rd]]
+      /* instrns with Rd */
+      if(it.rd != UNUSED_REG_INDEX){
+        /* retire old commited value */
+        if(cpu->r_rat[it.rd] != UNUSED_REG_INDEX){
+          int old_urf_index = cpu->r_rat[it.rd];
+          cpu->urf_valid[old_urf_index] = VALID;
+        }
+        /* set up new commited value, e.g. JAL */
+        cpu->r_rat[it.rd] = it.rd_tag;
+        assert(it.buffer_valid == VALID);
+        cpu->urf[it.rd_tag] = it.buffer;
+      }
+      /* STORE, BZ, BNZ, JMP, HALT, NOP */
+      else{
+      }
+      entry->pop_front();
+    }
+    /* head is not completed */
+    else{
+      break;
     }
   }
   return 0;
