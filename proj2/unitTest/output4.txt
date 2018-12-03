@@ -1,0 +1,315 @@
+APEX_CPU : Initialized APEX CPU, loaded 4 instructions
+APEX_CPU : Printing Code Memory
+opcode    rd        rs1       rs2       imm      
+MOVC      0         -1        -1        0        
+LOAD      1         -1        0         0        
+MUL       1         1         1         2147483647
+STORE     -1        1         0         0        
+================================================================================
+after Clock Cycle #: 1
+================================================================================
+           ROB : empty
+
+MEM            : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+           LSQ : empty
+
+intFU          : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+mulFU          : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+            IQ : empty
+
+DRD            : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+Fetch          : pc(4000,-01,-1) MOVC,R0[U-1 -1],#0  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 2
+================================================================================
+           ROB : empty
+
+MEM            : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+           LSQ : empty
+
+intFU          : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+mulFU          : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+            IQ : empty
+
+DRD            : pc(4000,-01,-1) MOVC,R0[U-1 -1],#0  UNSTALLED 10
+Fetch          : pc(4004,-01,-1) LOAD,R1[U-1 -1],R0[U-1 -1],#0  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 3
+================================================================================
+           ROB : pc(4000,003,-1) MOVC,R0[U00 -1],#0  
+
+MEM            : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+           LSQ : empty
+
+intFU          : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+mulFU          : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+        IQ[00] : pc(4000,003,-1) MOVC,R0[U00 -1],#0 
+
+DRD            : pc(4004,-01,-1) LOAD,R1[U-1 -1],R0[U-1 -1],#0  UNSTALLED 10
+Fetch          : pc(4008,-01,-1) MUL,R1[U-1 -1],R1[U-1 -1],R1[U-1 -1]  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 4
+================================================================================
+           ROB : pc(4000,003,-1) MOVC,R0[U00 -1],#0  
+           ROB : pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  
+
+MEM            : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+            LSQ: pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  
+
+intFU          : pc(4000,003,-1) MOVC,R0[U00 -1],#0  UNSTALLED 10
+mulFU          : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+        IQ[00] : pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0 
+
+DRD            : pc(4008,-01,-1) MUL,R1[U-1 -1],R1[U-1 -1],R1[U-1 -1]  UNSTALLED 10
+Fetch          : pc(4012,-01,-1) STORE,R1[U-1 -1],R0[U-1 -1],#0  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 5
+================================================================================
+           ROB : pc(4000,003,-1) MOVC,R0[U00 00],#0  COMPLETE
+           ROB : pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  
+           ROB : pc(4008,005,-1) MUL,R1[U02 -1],R1[U01 -1],R1[U01 -1]  
+
+MEM            : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+            LSQ: pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  
+
+intFU          : pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  UNSTALLED 10
+mulFU          : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+        IQ[00] : pc(4008,005,-1) MUL,R1[U02 -1],R1[U01 -1],R1[U01 -1] 
+
+DRD            : pc(4012,-01,-1) STORE,R1[U-1 -1],R0[U-1 -1],#0  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 6
+================================================================================
+           ROB : pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  
+           ROB : pc(4008,005,-1) MUL,R1[U02 -1],R1[U01 -1],R1[U01 -1]  
+           ROB : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+
+MEM            : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+            LSQ: pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  ADDR_VALID
+            LSQ: pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+
+intFU          : empty
+mulFU          : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+        IQ[00] : pc(4008,005,-1) MUL,R1[U02 -1],R1[U01 -1],R1[U01 -1] 
+        IQ[01] : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0 
+
+DRD            : pc(4016,-01,-1) NOP  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 7
+================================================================================
+           ROB : pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  
+           ROB : pc(4008,005,-1) MUL,R1[U02 -1],R1[U01 -1],R1[U01 -1]  
+           ROB : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+           ROB : pc(4016,007,-1) NOP  
+
+MEM            : pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  UNSTALLED 2
+            LSQ: pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+
+intFU          : empty
+mulFU          : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+        IQ[00] : pc(4008,005,-1) MUL,R1[U02 -1],R1[U01 -1],R1[U01 -1] 
+        IQ[01] : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0 
+        IQ[02] : pc(4016,007,-1) NOP 
+
+DRD            : pc(4016,-01,-1) NOP  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 8
+================================================================================
+           ROB : pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  
+           ROB : pc(4008,005,-1) MUL,R1[U02 -1],R1[U01 -1],R1[U01 -1]  
+           ROB : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+           ROB : pc(4016,007,-1) NOP  
+           ROB : pc(4016,008,-1) NOP  
+
+MEM            : pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  UNSTALLED 1
+            LSQ: pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+
+intFU          : pc(4016,007,-1) NOP  UNSTALLED 10
+mulFU          : pc(0000,-01,-1) UNKNOWN  UNSTALLED -1
+        IQ[00] : pc(4008,005,-1) MUL,R1[U02 -1],R1[U01 -1],R1[U01 -1] 
+        IQ[01] : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0 
+        IQ[02] : pc(4016,008,-1) NOP 
+
+DRD            : pc(4016,-01,-1) NOP  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 9
+================================================================================
+           ROB : pc(4004,004,-1) LOAD,R1[U01 -1],R0[U00 00],#0  COMPLETE
+           ROB : pc(4008,005,-1) MUL,R1[U02 -1],R1[U01 -1],R1[U01 -1]  
+           ROB : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+           ROB : pc(4016,007,-1) NOP  COMPLETE
+           ROB : pc(4016,008,-1) NOP  
+           ROB : pc(4016,009,-1) NOP  
+
+MEM            : empty
+            LSQ: pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+
+intFU          : pc(4016,008,-1) NOP  UNSTALLED 10
+mulFU          : pc(4008,005,-1) MUL,R1[U02 -1],R1[U01 -1],R1[U01 -1]  UNSTALLED 10
+        IQ[00] : pc(4016,009,-1) NOP 
+        IQ[01] : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0 
+
+DRD            : pc(4016,-01,-1) NOP  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 10
+================================================================================
+           ROB : pc(4008,005,-1) MUL,R1[U02 -1],R1[U01 -1],R1[U01 -1]  
+           ROB : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+           ROB : pc(4016,007,-1) NOP  COMPLETE
+           ROB : pc(4016,008,-1) NOP  COMPLETE
+           ROB : pc(4016,009,-1) NOP  
+           ROB : pc(4016,010,-1) NOP  
+
+MEM            : empty
+            LSQ: pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+
+intFU          : pc(4016,008,-1) NOP  UNSTALLED 10
+mulFU          : pc(4008,005,-1) MUL,R1[U02 01],R1[U01 -1],R1[U01 -1]  UNSTALLED 1
+        IQ[00] : pc(4016,009,-1) NOP 
+        IQ[01] : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0 
+        IQ[02] : pc(4016,010,-1) NOP 
+
+DRD            : pc(4016,-01,-1) NOP  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 11
+================================================================================
+           ROB : pc(4008,005,-1) MUL,R1[U02 01],R1[U01 -1],R1[U01 -1]  COMPLETE
+           ROB : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+           ROB : pc(4016,007,-1) NOP  COMPLETE
+           ROB : pc(4016,008,-1) NOP  COMPLETE
+           ROB : pc(4016,009,-1) NOP  
+           ROB : pc(4016,010,-1) NOP  
+           ROB : pc(4016,011,-1) NOP  
+
+MEM            : empty
+            LSQ: pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+
+intFU          : pc(4012,006,-1) STORE,R1[U02 01],R0[U00 00],#0  UNSTALLED 10
+mulFU          : empty
+        IQ[00] : pc(4016,009,-1) NOP 
+        IQ[01] : pc(4016,011,-1) NOP 
+        IQ[02] : pc(4016,010,-1) NOP 
+
+DRD            : pc(4016,-01,-1) NOP  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 12
+================================================================================
+           ROB : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+           ROB : pc(4016,007,-1) NOP  COMPLETE
+           ROB : pc(4016,008,-1) NOP  COMPLETE
+           ROB : pc(4016,009,-1) NOP  
+           ROB : pc(4016,010,-1) NOP  
+           ROB : pc(4016,011,-1) NOP  
+           ROB : pc(4016,012,-1) NOP  
+
+MEM            : empty
+            LSQ: pc(4012,006,-1) STORE,R1[U02 01],R0[U00 00],#0  ADDR_VALID
+
+intFU          : pc(4016,009,-1) NOP  UNSTALLED 10
+mulFU          : empty
+        IQ[00] : pc(4016,012,-1) NOP 
+        IQ[01] : pc(4016,011,-1) NOP 
+        IQ[02] : pc(4016,010,-1) NOP 
+
+DRD            : pc(4016,-01,-1) NOP  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 13
+================================================================================
+           ROB : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+           ROB : pc(4016,007,-1) NOP  COMPLETE
+           ROB : pc(4016,008,-1) NOP  COMPLETE
+           ROB : pc(4016,009,-1) NOP  COMPLETE
+           ROB : pc(4016,010,-1) NOP  
+           ROB : pc(4016,011,-1) NOP  
+           ROB : pc(4016,012,-1) NOP  
+           ROB : pc(4016,013,-1) NOP  
+
+MEM            : pc(4012,006,-1) STORE,R1[U02 01],R0[U00 00],#0  UNSTALLED 2
+           LSQ : empty
+
+intFU          : pc(4016,010,-1) NOP  UNSTALLED 10
+mulFU          : empty
+        IQ[00] : pc(4016,012,-1) NOP 
+        IQ[01] : pc(4016,011,-1) NOP 
+        IQ[02] : pc(4016,013,-1) NOP 
+
+DRD            : pc(4016,-01,-1) NOP  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 14
+================================================================================
+           ROB : pc(4012,006,-1) STORE,R1[U02 -1],R0[U00 00],#0  
+           ROB : pc(4016,007,-1) NOP  COMPLETE
+           ROB : pc(4016,008,-1) NOP  COMPLETE
+           ROB : pc(4016,009,-1) NOP  COMPLETE
+           ROB : pc(4016,010,-1) NOP  COMPLETE
+           ROB : pc(4016,011,-1) NOP  
+           ROB : pc(4016,012,-1) NOP  
+           ROB : pc(4016,013,-1) NOP  
+           ROB : pc(4016,014,-1) NOP  
+
+MEM            : pc(4012,006,-1) STORE,R1[U02 01],R0[U00 00],#0  UNSTALLED 1
+           LSQ : empty
+
+intFU          : pc(4016,011,-1) NOP  UNSTALLED 10
+mulFU          : empty
+        IQ[00] : pc(4016,012,-1) NOP 
+        IQ[01] : pc(4016,014,-1) NOP 
+        IQ[02] : pc(4016,013,-1) NOP 
+
+DRD            : pc(4016,-01,-1) NOP  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 15
+================================================================================
+           ROB : pc(4012,006,-1) STORE,R1[U02 01],R0[U00 00],#0  COMPLETE
+           ROB : pc(4016,007,-1) NOP  COMPLETE
+           ROB : pc(4016,008,-1) NOP  COMPLETE
+           ROB : pc(4016,009,-1) NOP  COMPLETE
+           ROB : pc(4016,010,-1) NOP  COMPLETE
+           ROB : pc(4016,011,-1) NOP  COMPLETE
+           ROB : pc(4016,012,-1) NOP  
+           ROB : pc(4016,013,-1) NOP  
+           ROB : pc(4016,014,-1) NOP  
+           ROB : pc(4016,015,-1) NOP  
+
+MEM            : empty
+           LSQ : empty
+
+intFU          : pc(4016,012,-1) NOP  UNSTALLED 10
+mulFU          : empty
+        IQ[00] : pc(4016,015,-1) NOP 
+        IQ[01] : pc(4016,014,-1) NOP 
+        IQ[02] : pc(4016,013,-1) NOP 
+
+DRD            : pc(4016,-01,-1) NOP  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+================================================================================
+after Clock Cycle #: 16
+================================================================================
+           ROB : pc(4016,012,-1) NOP  COMPLETE
+           ROB : pc(4016,013,-1) NOP  
+           ROB : pc(4016,014,-1) NOP  
+           ROB : pc(4016,015,-1) NOP  
+           ROB : pc(4016,016,-1) NOP  
+
+MEM            : empty
+           LSQ : empty
+
+intFU          : pc(4016,013,-1) NOP  UNSTALLED 10
+mulFU          : empty
+        IQ[00] : pc(4016,015,-1) NOP 
+        IQ[01] : pc(4016,014,-1) NOP 
+        IQ[02] : pc(4016,016,-1) NOP 
+
+DRD            : pc(4016,-01,-1) NOP  UNSTALLED 10
+Fetch          : pc(4016,-01,-1) NOP  UNSTALLED 10
+(apex) >> Simulation Complete

@@ -215,7 +215,7 @@ void print_MEM(MEM_t* stage){
 
 void print_LSQ(LSQ_t* stage){
   if(stage->entry.size()==0){
-    printf("%15s: %s\n", "LSQ", "empty");
+    printf("%15s: %s\n", "LSQ ", "empty");
     return;
   }
   for(auto& i: stage->entry){

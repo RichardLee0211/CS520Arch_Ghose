@@ -1,3 +1,4 @@
+# basic test
 MOVC R1 #1
 MOVC R2 #2
 MOVC R3 #3
