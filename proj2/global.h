@@ -48,12 +48,14 @@ typedef unsigned int uint;
 #define BUSY 1
 #define UNBUSY 0
 #define BUSY_NEW 10
-#define BUSY_INITIAL -1
-#define BUSY_DEFAULT 1
+#define BUSY_WAIT -2        // after success forward data, set by stage
+#define BUSY_INITIAL -1     // after lastStage forward new data
+#define BUSY_DONE 0         //
+
+#define BUSY_DEFAULT 1      // set by stage, when find BUSY_INITIAL
 #define BUSY_MUL_DELAY 2
 #define BUSY_MEM_DELAY 3
-#define BUSY_DONE 0
-#define BUSY_ALMOST_DONE 1 // if nextStage is almost done, copy stage to nextstage latch
+#define BUSY_ALMOST_DONE 1 // old, if nextStage is almost done, copy stage to nextstage latch
 
 
 #define DATA_MEM_SIZE 4096

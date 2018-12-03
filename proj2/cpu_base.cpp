@@ -176,7 +176,7 @@ void print_ROB(ROB_t* stage){
 
 void print_intFU(IntFU_t* stage){
   /* busy is done, and data forward complete */
-  if(stage->busy == BUSY_DONE && stage->stalled == UNSTALLED){
+  if(stage->busy == BUSY_WAIT && stage->stalled == UNSTALLED){
     printf("%-15s: empty\n", "intFU");
   }
   else{
@@ -189,7 +189,7 @@ void print_intFU(IntFU_t* stage){
 
 void print_mulFU(MulFU_t* stage){
   /* busy is done, and data forward complete */
-  if(stage->busy == BUSY_DONE && stage->stalled == UNSTALLED){
+  if(stage->busy == BUSY_WAIT && stage->stalled == UNSTALLED){
     printf("%-15s: empty\n", "mulFU");
   }
   else{
@@ -197,6 +197,31 @@ void print_mulFU(MulFU_t* stage){
         stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
     print_instruction(&stage->entry);
     printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
+  }
+}
+
+void print_MEM(MEM_t* stage){
+  /* busy is done, and data forward complete */
+  if(stage->busy == BUSY_WAIT && stage->stalled == UNSTALLED){
+    printf("%-15s: empty\n", "MEM");
+  }
+  else{
+    printf("%-15s: pc(%04d,%03d,%1d) ", "MEM",
+        stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
+    print_instruction(&stage->entry);
+    printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
+  }
+}
+
+void print_LSQ(LSQ_t* stage){
+  if(stage->entry.size()==0){
+    printf("%15s: %s\n", "LSQ", "empty");
+    return;
+  }
+  for(auto& i: stage->entry){
+    printf("%15s: pc(%04d,%03d,%1d) ", "LSQ",  i.pc, i.dispatch_cycle, i.CFID);
+    print_instruction(&i);
+    printf(" %s\n", i.mem_address_valid == VALID ? "ADDR_VALID": "");
   }
 }
 
@@ -226,8 +251,8 @@ void print_all_stage(CPU_Stage* stages){
 void print_all_stage(APEX_CPU* cpu){
   print_ROB(&cpu->rob); printf("\n");
 
-  // print_MEM(&cpu->mem);
-  // print_LSQ(&cpu->lsq); printf("\n");
+  print_MEM(&cpu->mem);
+  print_LSQ(&cpu->lsq); printf("\n");
 
   print_intFU(&cpu->intFU);
   print_mulFU(&cpu->mulFU);
@@ -339,6 +364,19 @@ int MulFU_init(MulFU_t* stage){
 
 int ROB_init(ROB_t* stage){
   // stage->entry; // std::deque will take care of it
+  stage->busy = BUSY_INITIAL;
+  stage->stalled = UNSTALLED;
+  return 0;
+}
+
+int MEM_init(MEM_t* stage){
+  stage_base_init(&stage->entry);
+  stage->busy = BUSY_INITIAL;
+  stage->stalled = UNSTALLED;
+  return 0;
+}
+
+int LSQ_init(LSQ_t* stage){
   stage->busy = BUSY_INITIAL;
   stage->stalled = UNSTALLED;
   return 0;
@@ -491,6 +529,20 @@ ROB_searchEntry(APEX_CPU* cpu, int dispatch_cycle){
   return addr;
 }
 
+CPU_Stage_base*
+LSQ_searchEntry(APEX_CPU* cpu, int dispatch_cycle){
+  if(dispatch_cycle == INVALID) return NULL;
+  assert(cpu->lsq.entry.size()>0);
+  CPU_Stage_base* addr=NULL;
+  for(auto& i: cpu->lsq.entry){
+    if(i.dispatch_cycle == dispatch_cycle){
+      addr = &i;
+      break;
+    }
+  }
+  return addr;
+}
+
 /*
  * usually isForwarded receive return value
  * SUCCEED(0) means success
@@ -588,8 +640,11 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
     if(strcmp(stage->entry.opcode, "LOAD")==0 ||
         strcmp(stage->entry.opcode, "STORE") ==0
       ){
-      // TODO:
-      assert(cpu->lsq.entry.size() >0);
+      CPU_Stage_base* LSQ_entry_ptr = LSQ_searchEntry(cpu, stage->entry.dispatch_cycle);
+      if(LSQ_entry_ptr!=NULL){
+        assert(stage->entry.mem_address_valid == VALID);
+        *LSQ_entry_ptr = stage->entry;
+      }
     }
     /* other instrn */
     else{
@@ -598,6 +653,10 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
       if(ROB_entry_ptr != NULL){
         stage->entry.completed = VALID;
         *ROB_entry_ptr = stage->entry;
+      }
+      else{
+        fprintf(stderr, "can't find Entry in ROB\n");
+        assert(0);
       }
       /* intFU->broadcast */
       if(stage->entry.rd != UNUSED_REG_INDEX){
@@ -627,15 +686,46 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
   }
   /* LSQ->MEM */
   else if(stage_num == LSQ){
+    LSQ_t* stage = &cpu->lsq;
+    MEM_t* nextStage = &cpu->mem;
+    assert(stage->entry.size()>0);
+    CPU_Stage_base& it = stage->entry.front();
+    assert(strcmp(it.opcode, "LOAD")==0 || strcmp(it.opcode, "STORE")==0);
+    if(nextStage->busy > BUSY_DONE || nextStage->stalled == STALLED){
+      return FAILED;
+    }
+    nextStage->entry= it;
+    nextStage->busy = BUSY_NEW;
+    stage->entry.pop_front();
+    return SUCCEED;
 
   }
   /* MEM->ROB, MEM->broadcast */
   else if(stage_num == MEM ){
+    MEM_t* stage = &cpu->mem;
+    /* MEM->ROB, set ROB entry buffer and valid bit */
+    CPU_Stage_base* ROB_entry_ptr = ROB_searchEntry(cpu, stage->entry.dispatch_cycle);
+    if(ROB_entry_ptr != NULL){
+      stage->entry.completed = VALID;
+      *ROB_entry_ptr = stage->entry;
+    }
+    else{
+      fprintf(stderr, "can't find Entry in ROB\n");
+      assert(0);
+    }
+    /* MEM->broadcast */
+    if(stage->entry.rd != UNUSED_REG_INDEX){
+      assert(stage->entry.rd_tag != UNUSED_REG_INDEX);
+      assert(stage->entry.buffer_valid == VALID);
+      cpu->broadcast.data_mem = stage->entry.buffer;
+      cpu->broadcast.tag_mem = stage->entry.rd_tag;
+    }
+    return SUCCEED;
   }
-  /* ROB */
+  /* ROB or others */
   else {  // if(stage_num == ROB){
+    fprintf(stderr, "should reach here\n");
     assert(0);
-    // nothing..
   }
 
   return 0;

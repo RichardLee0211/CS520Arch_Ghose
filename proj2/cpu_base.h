@@ -57,7 +57,8 @@ struct CPU_Stage_base
 {
   int valid; // work for IQ entry. LSQ and ROB using std::deque
   int readyforIssue; // work for IQ entry, set to VALID when ready for issue
-  int completed; // work for ROB entry when check for retirement, set to VALID when ready for retirement
+  int completed;  // work for ROB entry when check for retirement,
+                  // set to VALID by intFU, mulFU, and mem
 
   int pc;		    // Program Counter
   char opcode[OPCODE_SIZE];	// Operation Code
@@ -66,21 +67,23 @@ struct CPU_Stage_base
   int rd;		    // Destination Register Address
   int imm;		    // Literal Value
 
-  int rs1_tag;
-  int rs2_tag;
-  int rd_tag;
+  int rs1_tag;  // set at DRD stage, by looking at RAT
+  int rs2_tag;  // set at DRD stage, by looking at RAT
+  int rd_tag;   // set at DRD stage, new UR by URF_getValidIndex
 
-  int rs1_value;	// Source-1 Register Value
-  int rs2_value;	// Source-2 Register Value
-  int rs1_value_valid;
-  int rs2_value_valid;
+  int rs1_value;	// Source-1 Register Value, set at DRD or IQ
+  int rs2_value;	// Source-2 Register Value, set at DRD or IQ
+  int rs1_value_valid; // work for IQ stage
+  int rs2_value_valid; // work for IQ stage
 
-  int buffer;		// Latch to hold result of FU for later
-  int buffer_valid;
+  int buffer;		// Latch to hold result of FU for later, Rd result
+  int buffer_valid; // set by intFU, mulFU, MEM, but no one check it
   int mem_address;	// Computed Memory Address, for LOAD, STORE, JUMP, JAL, BZ, BNZ
-  int mem_address_valid;
+  int mem_address_valid; // set by intFU, but not one check it
 
-  int dispatch_cycle; // this is like unique ID of instrn after dispatch, could use it to find conresponding instrn in LSQ, ROB and IQ
+  int dispatch_cycle; // this is like unique ID of instrn after dispatch,
+                      // could use it to find conresponding instrn in LSQ, ROB and IQ
+                      // set at DRD stage
   int CFID;         // for branch instrns
   // int ROB_index; // using dispatch_cycle to do ID
   // int IQ_index;
@@ -167,7 +170,6 @@ struct APEX_CPU
   int urf[NUM_UREGS];
   int urf_valid[NUM_UREGS];       // function like free list
   int urf_z_flag[NUM_UREGS]; // remove, z_flag process is headle by CFIDs and CFIO
-  // int urf_free[NUM_UREGS];
 
   /* fetch, DRD, IQ, ROB, intFU, mulFU */
   CPU_Stage stage[NUM_STAGES]; /* Array of 5 CPU_stage */
@@ -212,8 +214,8 @@ int DRD_init(DRD_t* stage);
 int IQ_init(IQ_t *stage);
 int IntFU_init(IntFU_t* stage);
 int MulFU_init(MulFU_t* stage);
-int LSQ_init(LSQ_t* stage); // TODO: later
-int MEM_init(MEM_t* stage); // TODO: later
+int LSQ_init(LSQ_t* stage);
+int MEM_init(MEM_t* stage);
 int ROB_init(ROB_t* stage);
 
 #endif /* CPU_BASE_H */

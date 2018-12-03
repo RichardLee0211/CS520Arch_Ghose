@@ -70,8 +70,8 @@ APEX_cpu_init(const char* filename)
   IQ_init(&cpu->iq);
   IntFU_init(&cpu->intFU);
   MulFU_init(&cpu->mulFU);
-  // LSQ_init(&cpu->lsq);
-  // MEM_init(&cpu->MEM);
+  LSQ_init(&cpu->lsq);
+  MEM_init(&cpu->mem);
   ROB_init(&cpu->rob);
 
   memset(cpu->data_memory, 0xFF, sizeof(int) * DATA_MEM_SIZE); // set to -1 for debug purpose
@@ -144,8 +144,8 @@ APEX_cpu_run(APEX_CPU* cpu)
 
     cpu->clock++;
     ROB_run(cpu);
-    // LSQ_run(cpu);
-    // MEM_run(cpu);
+    LSQ_run(cpu);
+    MEM_run(cpu);
     intFU_run(cpu);
     mulFU_run(cpu);
     IQ_run(cpu);
@@ -272,14 +272,16 @@ DRD_run(APEX_CPU* cpu)
     /* fetch */
     fetchValue(cpu, &stage->entry);
     /* renaming, set up new most recently tag */
-    int urf_index = URF_getValidIndex(cpu);
-    if(urf_index == FAILED){
-      stage->stalled = STALLED;
-      return 0;
+    if(stage->entry.rd != UNUSED_REG_INDEX){
+      int urf_index = URF_getValidIndex(cpu);
+      if(urf_index == FAILED){
+        stage->stalled = STALLED;
+        return 0;
+      }
+      cpu->rat[stage->entry.rd] = urf_index;
+      cpu->urf_valid[urf_index] = INVALID;
+      stage->entry.rd_tag = urf_index;
     }
-    cpu->rat[stage->entry.rd] = urf_index;
-    cpu->urf_valid[urf_index] = INVALID;
-    stage->entry.rd_tag = urf_index;
     /* finish job */
     stage->busy--;
   }
@@ -300,7 +302,7 @@ DRD_run(APEX_CPU* cpu)
   }
   /* forward success, wait last stage to push new data */
   else{
-    // stage->busy == BUSY_DONE check
+    stage->busy = BUSY_WAIT; // check
     // stage->stalled = UNSTALLED check
     // last stage could forward new data and set BUSY_NEW flag
   }
@@ -483,7 +485,7 @@ intFU_run(APEX_CPU* cpu)
   }
   /* forward success, wait last stage to push new data */
   else{
-    // stage->busy == BUSY_DONE check
+    stage->busy = BUSY_WAIT; // check
     // stage->stalled = UNSTALLED check
     // last stage could forward new data and set BUSY_NEW flag
   }
@@ -538,7 +540,7 @@ mulFU_run(APEX_CPU* cpu){
   }
   /* forward success, wait last stage to push new data */
   else{
-    // stage->busy == BUSY_DONE check
+    stage->busy = BUSY_WAIT; // check
     // stage->stalled = UNSTALLED check
     // last stage could forward new data and set BUSY_NEW flag
   }
@@ -547,8 +549,15 @@ mulFU_run(APEX_CPU* cpu){
 
 int
 LSQ_run(APEX_CPU* cpu){
-  // TODO:
-  cpu++;
+  // MEM_t* nextStage = &cpu->mem;
+  LSQ_t* stage = &cpu->lsq;
+  if(stage->entry.size() == 0){
+    return 0;
+  }
+  CPU_Stage_base& it = stage->entry.front();
+  if(it.mem_address_valid == VALID){
+    copyStagetoNext(cpu, LSQ);
+  }
   return 0;
 }
 
@@ -558,8 +567,58 @@ LSQ_run(APEX_CPU* cpu){
 int
 MEM_run(APEX_CPU* cpu)
 {
-  // TODO:
-  cpu++;
+  MEM_t* stage = &cpu->mem;
+  CPU_Stage_base* entry = &stage->entry;
+  stage->stalled = UNSTALLED;
+
+  /* only set by last stage, if it's new business, start a new busy clock */
+  if(stage->busy == BUSY_NEW){
+    stage->busy = BUSY_MEM_DELAY;
+  }
+
+  /* do the job */
+  if(stage->busy > BUSY_DONE){
+    if(strcmp(entry->opcode, "LOAD")==0){
+      assert(entry->mem_address_valid==VALID);
+      entry->buffer = cpu->data_memory[entry->mem_address];
+      entry->buffer_valid = VALID;
+    }
+    else if(strcmp(entry->opcode, "STORE")==0){
+      assert(entry->mem_address_valid==VALID);
+      assert(entry->rs1_value_valid == VALID);
+      cpu->data_memory[entry->mem_address] = entry->rs1_value ;
+    }
+    else{
+      fprintf(stderr, "wrong instrn in MEM\n");
+      assert(0);
+    }
+    /* finish job */
+    stage->busy--;
+  }
+
+  int isForwarded = FAILED;
+  /* it's done, try to copy data to nextStage */
+  if(stage->busy==BUSY_DONE){
+    // MEM->ROB, MEM->broadcast
+    isForwarded = copyStagetoNext(cpu, MEM);
+  }
+  /* business hasn't been done, do it in next circle
+   * or this is BUSY_INITIAL, don't need to do process
+   */
+  else{
+    return 0;
+  }
+
+  /* forward failed */
+  if(isForwarded == FAILED){
+    stage->stalled = STALLED;
+  }
+  /* forward success, wait last stage to push new data */
+  else{
+    stage->busy = BUSY_WAIT; // check
+    // stage->stalled = UNSTALLED check
+    // last stage could forward new data and set BUSY_NEW flag
+  }
   return 0;
 }
 
