@@ -130,6 +130,87 @@ a better way
     DRD_run(cpu);   // =>ROB, =>IQ or =>LSQ
     Fetch_run(cpu); // =>DRD
 
+### about branch_instrn
+#### way 1:
+using
+int urf_z_flag[NUM_UREGS]
+int urf_z_flag_valid[NUM_UREGS]
+
+when an arithmetic instrn dispatch,
+    cfid_arr[cfid].z_urf_index = rd_tag;
+    urf_z_flag_valid[rd_tag]=INVALID; // let BZ/BNZ wait in IQ
+
+when this arithmetic instrn finish EX,
+    tell cfid_arr[cfid] z_flag is ready, and z_flag value; // let BZ/BNZ waiting in IQ readyforIssue
+
+when this arithmetic instrn commited in ROB,
+    urf_z_flag_valid[rd_tag] = VALID; //
+    urf_z_flag[rd_tag] = z_flag;
+
+to handle test case like this:
+[0] LOAD R2 R1 #0
+[0] MUL R3 R2 R2   # let RAT[R3]=U3, when this instrn commited, R_RAT[R3]=U3, set urf_z_flag[U3]=value
+[0] EX-OR R3 R2 R2 # let RAT[R3]=U4, when this instrn commited, R_RAT[R3]=U4, U3 is free
+[0] EX-OR R3 R2 R2
+[0] EX-OR R3 R2 R2
+[0] EX-OR R3 R2 R2 # because urf allocation logic start from urf[0] to urf[39] check for free entry, it's highly possible to allocate U3 again
+[0] EX-OR R3 R2 R2 # let RAT[R3]=U3, when this instrn commited, R_RAT[R3]=U3, not set urf_z_flag[U3] because this is not a arithmetic instrn
+[0] EX-OR R3 R2 R2
+[0] BZ #4          # when it's in intFU, look at cfid_arr[0].z_urf_index (U3), and urf_z_flag[U3] to judgement
+[1] BNZ #4
+
+way too complicated
+
+#### way 2:
+  int arithmetic_count;
+  // the number of arithmtic instrn in the flight,
+  // initial to 0, when it's 0, BZ or BNZ could be issue to intFU
+  kind of stupid
+
+
+#### way z:
+using CFID_arr to store last arithmetic instrn status and z_flag value
+  int z_flag; // z_flag from last arithmetic instrn, initial to VALID
+  int z_flag_valid; // initial to VALID, when an arithmetic instrn dispatch, set to INVALID; when this instrn finished EX, set to VALID
+  int z_urf_index; // record the rd_tag of last arithmetic instrn, used for set z_flag_valid to VALID
+1.
+JUMP R1 #23
+JAL Rd R1 #23
+JUMP/JAL is readyforIssue when it gets all resource register value
+when JUMP/JAL is in intFU, need to Flush instrn according to cfid and cfio
+2.
+BZ/BNZ is readyforIssue when associated cfid_arr entry get valid z_flag
+when an arithmetic instrn dispatch:
+     cfid_arr[cfid]->z_flag_valid = INVALID // telling coming BZ/BNZ to wait in IQ
+     cfid_arr[cfid]->z_urf_index = rd_tag
+
+when this arithmetic finish calulation:
+     for all rd_tag == cfid_arr[i].z_urf_index,
+       set cfid_arr[i].z_flag and cfid_arr[i].z_flag_valid=VALID
+
+when a branch_instrn dispatch and allocate a new CFID:
+    cfid_arr[new_cfid].z_flag_valid = cfid_arr[old_cfid].z_flag_valid
+    cfid_arr[new_cfid].z_flag = cfid_arr[old_cfid].z_flag
+    cfid_arr[new_cfid].z_urf_index = cfid_arr[old_cfid].z_urf_index
+
+when a branch_instrn check if it's readyforIssue:
+  if BZ || BNZ
+    if cfid_arr[cfid].z_flag_valid == VALID
+      it's ready
+
+To handle test case like this:
+[0] LOAD R2 R1 #0
+[0] MUL R3 R2 R2
+[0] BZ #4
+[1] BNZ #4
+
+Or more crazy:
+[0] LOAD R2 R1 #0
+[0] MUL R3 R2 R2
+[0] JUMP R0 #0
+[1] BZ #4
+[2] BNZ #4
+
 
 
 ### some trick about vim

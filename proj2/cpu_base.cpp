@@ -397,21 +397,19 @@ int LSQ_init(LSQ_t* stage){
 }
 
 int CFID_init(APEX_CPU* cpu){
-  int i=0;
-  cpu->cfid_arr[i].valid = INVALID;
-  cpu->cfid_arr[i].z_flag = VALID;
-  memset(cpu->cfid_arr[i].rat_bak, 0xFF, sizeof(cpu->cfid_arr[i].rat_bak));
-  // memset(cpu->cfid_arr[i].urf_bak, 0xFF, sizeof(cpu->cfid_arr[i].urf_bak));
-  memset(cpu->cfid_arr[i].urf_valid_bak, 0xFF, sizeof(cpu->cfid_arr[i].urf_bak));
-  cpu->cfio.push_back(0);
+  for(int i=0; i<NUM_CFID; i++){
+    if(i==0)
+      cpu->cfid_arr[i].valid = INVALID; // because 0 is used at the begining
+    else
+      cpu->cfid_arr[i].valid = VALID;
 
-  for(i=1; i<NUM_CFID; i++){
-    cpu->cfid_arr[i].valid = VALID;
     cpu->cfid_arr[i].z_flag = VALID;
+    cpu->cfid_arr[i].z_flag_valid = VALID;
+    cpu->cfid_arr[i].z_urf_index = UNUSED_REG_INDEX;
     memset(cpu->cfid_arr[i].rat_bak, 0xFF, sizeof(cpu->cfid_arr[i].rat_bak));
-    // memset(cpu->cfid_arr[i].urf_bak, 0xFF, sizeof(cpu->cfid_arr[i].urf_bak));
-    memset(cpu->cfid_arr[i].urf_valid_bak, 0xFF, sizeof(cpu->cfid_arr[i].urf_bak));
+    memset(cpu->cfid_arr[i].urf_valid_bak, 0xFF, sizeof(cpu->cfid_arr[i].urf_valid_bak));
   }
+  cpu->cfio.push_back(0);
 
   return 0;
 }
@@ -503,12 +501,24 @@ int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
     }
   }
   /* if got all rs_values or never need one, set readyforIssue */
-  /* BZ and BNZ readyforIssue bits is dependent on last arithmetic instrn */
+  /* JUMP and JAL is readyforIssue when it gets resource, like other instrns
+   */
   if(strcmp(entry->opcode, "BZ")!=0 &&
       strcmp(entry->opcode, "BNZ")!=0 &&
       failed == INVALID
       ){
     entry->readyforIssue = VALID;
+  }
+  /* BZ and BNZ readyforIssue bits is dependent on last arithmetic instrn */
+  else if(strcmp(entry->opcode, "BZ")==0 &&
+      strcmp(entry->opcode, "BNZ")==0
+      ){
+    if(cpu->cfid_arr[entry->cfid].z_flag_valid == VALID){
+      entry->readyforIssue = VALID;
+    }
+  }
+  // these are not readyforIssue
+  else{
   }
   return 0;
 }
@@ -560,7 +570,7 @@ int flush_restore(APEX_CPU* cpu, int cfid){
     cpu->cfio.pop_back();
   }
   memcpy(cpu->rat, cpu->cfid_arr[cfid].rat_bak, sizeof(cpu->rat));
-  // memcpy(cpu->urf, cpu->cfid_arr[cfid].urf_bak, sizeof(cpu->urf));
+  memcpy(cpu->urf_valid, cpu->cfid_arr[cfid].urf_valid_bak, sizeof(cpu->urf_valid));
   return 0;
 }
 
@@ -634,6 +644,23 @@ LSQ_searchEntry(APEX_CPU* cpu, int dispatch_cycle){
     }
   }
   return addr;
+}
+
+int setZFlaginCFID_arr(APEX_CPU* cpu, CPU_Stage_base* entry){
+  assert(entry->buffer_valid==VALID);
+  for(int i=0; i<NUM_CFID; ++i){
+    if(cpu->cfid_arr[i].valid == INVALID &&
+        cpu->cfid_arr[i].z_urf_index == entry->rd_tag
+      ){
+      if(entry->buffer == 0)
+        cpu->cfid_arr[i].z_flag = VALID;
+      else
+        cpu->cfid_arr[i].z_flag = INVALID;
+
+      cpu->cfid_arr[i].z_flag_valid = VALID;
+    }
+  }
+  return 0;
 }
 
 /*

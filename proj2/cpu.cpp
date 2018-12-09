@@ -128,24 +128,12 @@ APEX_cpu_run(APEX_CPU* cpu)
 
     /* All the instructions committed, so exit */
     // TODO_2: is there a better condition??
-    if (
-        (
-        cpu->pc >= get_pc(cpu->code_memory_size) &&
-        !cpu->rob.entry.empty() &&
-        cpu->rob.entry.front().pc >= get_pc(cpu->code_memory_size)
-        )
-        ||
-        (
-        !cpu->rob.entry.empty() &&
-        strcmp(cpu->rob.entry.front().opcode, "HALT")==0
-        )
-      ){
+
+    cpu->clock++;
+    if(ROB_run(cpu) == FAILED){
       printf("(apex) >> Simulation Complete");
       break;
     }
-
-    cpu->clock++;
-    ROB_run(cpu);
 
     MEM_run(cpu);
     intFU_run(cpu);
@@ -255,6 +243,10 @@ DRD_run(APEX_CPU* cpu)
 
   /* do the job */
   if(stage->busy > BUSY_DONE){
+    /* set cfid lable */
+    assert(cpu->cfio.size() > 0);
+    int old_cfid = cpu->cfio.back();
+    stage->entry.cfid = old_cfid;
     /* set rs1_tag rs2_tag from RAT */
     if(entry->rs1 != UNUSED_REG_INDEX){
       if(cpu->rat[entry->rs1] == UNUSED_REG_INDEX){
@@ -270,9 +262,9 @@ DRD_run(APEX_CPU* cpu)
       }
       entry->rs2_tag = cpu->rat[entry->rs2];
     }
-    /* fetch */
+    /* fetch and set readyforIssue flag */
     fetchValue(cpu, &stage->entry);
-    /* renaming, set up new most recently tag */
+    /* renaming Rd, set up new most recently tag */
     if(stage->entry.rd != UNUSED_REG_INDEX){
       int urf_index = URF_getValidIndex(cpu);
       if(urf_index == FAILED){
@@ -283,36 +275,40 @@ DRD_run(APEX_CPU* cpu)
       cpu->urf_valid[urf_index] = INVALID;
       stage->entry.rd_tag = urf_index;
     }
-    /* set cfid lable */
-    assert(cpu->cfio.size() > 0);
-    int old_cfid = cpu->cfio.back();
-    stage->entry.cfid = old_cfid;
-    /* arithmetic instrn */
-    /*
+    /* arithmetic instrn setup
+     * cfid_arr[cfid].z_flag_valid
+     * cfid_arr[cfid].z_urf_index
+     */
     if(strcmp(stage->entry.opcode, "ADD")==0 ||
         strcmp(stage->entry.opcode, "ADDL")==0 ||
         strcmp(stage->entry.opcode, "SUB")==0 ||
         strcmp(stage->entry.opcode, "SUBL")==0 ||
         strcmp(stage->entry.opcode, "MUL")==0
         ){
-      cpu->cfid_arr[entry->cfid].arithmetic_count++;
+      assert(stage->entry.rd_tag != UNUSED_REG_INDEX);
+      assert(entry->cfid>=0 && entry->cfid<NUM_CFID);
+      cpu->cfid_arr[entry->cfid].z_urf_index=stage->entry.rd_tag;
+      cpu->cfid_arr[entry->cfid].z_flag_valid = INVALID;
     }
-    */
-    /* if CF_instrn, allocate new CFID for subsequent instrn */
+    /* CF_instrn, allocate new CFID for subsequent instrns */
     // TODO_2: maybe move to copyStagetoNext
     if(strcmp(stage->entry.opcode, "JUMP")==0 ||
+        strcmp(stage->entry.opcode, "JAL") ==0 ||
         strcmp(stage->entry.opcode, "BZ") ==0 ||
-        strcmp(stage->entry.opcode, "BNZ") ==0 ||
-        strcmp(stage->entry.opcode, "JAL") ==0
+        strcmp(stage->entry.opcode, "BNZ") ==0
         ){
       int new_cfid = CFID_getValidEntry(cpu);
       if(new_cfid==FAILED){
-        // TODO: stall DRD stage
+        // TODO: stall DRD stage, is it correct way to do so?? need to restore resources
+        stage->stalled = STALLED;
+        return 0;
       }
       cpu->cfid_arr[new_cfid].valid = INVALID;
+      cpu->cfid_arr[new_cfid].z_flag_valid = cpu->cfid_arr[old_cfid].z_flag_valid;
       cpu->cfid_arr[new_cfid].z_flag = cpu->cfid_arr[old_cfid].z_flag;
+      cpu->cfid_arr[new_cfid].z_urf_index = cpu->cfid_arr[old_cfid].z_urf_index;
       memcpy(cpu->cfid_arr[old_cfid].rat_bak, cpu->rat, sizeof(cpu->rat));
-      // memcpy(cpu->cfid_arr[old_cfid].urf_bak, cpu->urf, sizeof(cpu->urf));
+      memcpy(cpu->cfid_arr[old_cfid].urf_valid_bak, cpu->urf_valid, sizeof(cpu->urf_valid));
       cpu->cfio.push_back(new_cfid);
     }
     /* finish job */
@@ -431,27 +427,18 @@ intFU_run(APEX_CPU* cpu)
     else if (strcmp(entry->opcode, "ADD") == 0) {
       entry->buffer = entry->rs1_value + entry->rs2_value;
       entry->buffer_valid = VALID;
-      if(entry->buffer == 0) cpu->cfid_arr[entry->cfid].z_flag |= 0x1;
-      else cpu->cfid_arr[entry->cfid].z_flag &= ~0x1;
     }
     else if(strcmp(entry->opcode, "ADDL")==0){
       entry->buffer = entry->rs1_value + entry->imm;
       entry->buffer_valid = VALID;
-      if(entry->buffer == 0) cpu->cfid_arr[entry->cfid].z_flag |= 0x1;
-      else cpu->cfid_arr[entry->cfid].z_flag &= ~0x1;
     }
     else if (strcmp(entry->opcode, "SUB") == 0) {
       entry->buffer = entry->rs1_value - entry->rs2_value;
       entry->buffer_valid = VALID;
-      if(entry->buffer == 0) cpu->cfid_arr[entry->cfid].z_flag |= 0x1;
-      else cpu->cfid_arr[entry->cfid].z_flag &= ~0x1;
     }
     else if(strcmp(entry->opcode, "SUBL")==0){
       entry->buffer = entry->rs1_value - entry->imm;
       entry->buffer_valid = VALID;
-      if(entry->buffer == 0) cpu->cfid_arr[entry->cfid].z_flag |= 0x1;
-      else cpu->cfid_arr[entry->cfid].z_flag &= ~0x1;
-
     }
     else if (strcmp(entry->opcode, "MUL") == 0) {
       fprintf(stderr, "have MUL instrn in intFU stage\n");
@@ -472,14 +459,20 @@ intFU_run(APEX_CPU* cpu)
     else if(strcmp(entry->opcode, "JUMP")==0 ||
         strcmp(entry->opcode, "JMP") ==0
         ){
+      /* always taken */
       entry->mem_address= entry->rs1_value + entry->imm;
       entry->mem_address_valid = VALID;
       cpu->pc = entry->rs1_value + entry->imm;
       assert(cpu->pc >= PC_START_INDEX);
       if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
       flush_restore(cpu, entry->cfid);
+      /* don't need to free this cfid_arr entry, old_cfid is used in branch_target */
+      // cpu->cfio.pop_front();
+      assert(cpu->cfio.size()>0);
+      // cpu->cfid_arr[entry->cfid].valid = VALID;
     }
     else if(strcmp(entry->opcode, "JAL")==0){
+      /* always taken */
       entry->buffer = entry->pc + BYTES_PER_INS;
       entry->buffer_valid = VALID;
       entry->mem_address = entry->rs1_value + entry->imm;
@@ -488,37 +481,49 @@ intFU_run(APEX_CPU* cpu)
       assert(cpu->pc >= PC_START_INDEX);
       if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
       flush_restore(cpu, entry->cfid);
+      /* don't need to free this cfid_arr entry, old_cfid is used in branch_target */
+      // cpu->cfio.pop_front();
+      assert(cpu->cfio.size()>0);
+      // cpu->cfid_arr[entry->cfid].valid = VALID;
     }
 
     else if(strcmp(entry->opcode, "BZ")==0 ){
+      assert(cpu->cfid_arr[entry->cfid].z_flag_valid == VALID);
       /* taken, flush instrn and reload rat urf, reuse this cfid */
-      if((cpu->cfid_arr[entry->cfid].z_flag&0x1) == 0x1){
+      if(cpu->cfid_arr[entry->cfid].z_flag==VALID){
         entry->mem_address = entry->pc + entry->imm;
         entry->mem_address_valid = VALID;
         cpu->pc = entry->pc + entry->imm;
         assert(cpu->pc >= PC_START_INDEX);
         if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
         flush_restore(cpu, entry->cfid);
+        // don't need to free cfid_arr[cfid], used at branch target
+        assert(cpu->cfio.size()>0);
       }
-      /* not taken, free this cfid_arr entry */
+      /* not taken */
       else{
+        /* free this cfid_arr entry */
         cpu->cfio.pop_front();
         assert(cpu->cfio.size()>0);
         cpu->cfid_arr[entry->cfid].valid = VALID;
       }
     }
     else if(strcmp(entry->opcode, "BNZ")==0){
+      assert(cpu->cfid_arr[entry->cfid].z_flag_valid == VALID);
       /* taken, flush instrn and reload rat urf, reuse this cfid */
-      if((cpu->cfid_arr[entry->cfid].z_flag&0x1) == 0x0){
+      if(cpu->cfid_arr[entry->cfid].z_flag == INVALID){
         entry->mem_address = entry->pc + entry->imm;
         entry->mem_address_valid = VALID;
         cpu->pc = entry->pc + entry->imm;
         assert(cpu->pc >= PC_START_INDEX);
         if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
         flush_restore(cpu, entry->cfid);
+        // don't need to free cfid_arr[cfid], used at branch target
+        assert(cpu->cfio.size()>0);
       }
-      /* not taken, free this cfid_arr entry */
+      /* not taken */
       else{
+        /* free this cfid_arr entry */
         cpu->cfio.pop_front();
         assert(cpu->cfio.size()>0);
         cpu->cfid_arr[entry->cfid].valid = VALID;
@@ -528,6 +533,7 @@ intFU_run(APEX_CPU* cpu)
     else{
       // NOP, unknown instruction
     }
+
     /* finish job */
     stage->busy--;
   }
@@ -535,6 +541,14 @@ intFU_run(APEX_CPU* cpu)
   int isForwarded = FAILED;
   /* it's done, try to copy data to nextStage */
   if(stage->busy==BUSY_DONE){
+    /* set z_flag in cfid_arr tell BZ/BNZ could issue */
+    if(strcmp(entry->opcode, "ADD")==0 ||
+        strcmp(entry->opcode, "ADDL")==0 ||
+        strcmp(entry->opcode, "SUB")==0 ||
+        strcmp(entry->opcode, "SUBL")==0
+        ){
+      setZFlaginCFID_arr(cpu, entry);
+    }
     // intFU->ROB, intFU->broadcast
     isForwarded = copyStagetoNext(cpu, stage_num);
   }
@@ -575,8 +589,6 @@ mulFU_run(APEX_CPU* cpu){
     if(strcmp(entry->opcode, "MUL")==0){
       entry->buffer = entry->rs1_value * entry->rs2_value;
       entry->buffer_valid = VALID;
-      if(entry->buffer == 0) cpu->cfid_arr[entry->cfid].z_flag |= 0x1;
-      else cpu->cfid_arr[entry->cfid].z_flag &= ~0x1;
     }
     else{
       fprintf(stderr, "got other instrn in mulFU stage\n");
@@ -589,6 +601,7 @@ mulFU_run(APEX_CPU* cpu){
   int isForwarded = FAILED;
   /* it's done, try to copy data to nextStage */
   if(stage->busy==BUSY_DONE){
+    setZFlaginCFID_arr(cpu, entry);
     // mulFU->ROB, mulFU->broadcast
     isForwarded = copyStagetoNext(cpu, stage_num);
   }
@@ -697,6 +710,14 @@ ROB_run(APEX_CPU* cpu){
   while(entry->size()>0){
     auto& it = entry->front();
     if(it.completed==VALID){
+      /* HALT is at the head of ROB and complete, stop cpu */
+      if(strcmp(it.opcode, "HALT")==0){
+        return FAILED;
+      }
+      /* NOP with pc==get_pc(cpu->code_memory_size) at the head of ROB and complete, stop cpu */
+      if(it.pc >= get_pc(cpu->code_memory_size)){
+        return FAILED;
+      }
       /* instrns with Rd */
       if(it.rd != UNUSED_REG_INDEX){
         /* retire old commited value */
@@ -709,7 +730,7 @@ ROB_run(APEX_CPU* cpu){
         assert(it.buffer_valid == VALID);
         cpu->urf[it.rd_tag] = it.buffer;
       }
-      /* STORE, BZ, BNZ, JMP, HALT, NOP */
+      /* STORE, BZ, BNZ, JMP, NOP */
       else{
       }
       entry->pop_front();

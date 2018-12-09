@@ -154,7 +154,7 @@ struct Broadcast_t{
  * this is entry of cpu->cfid_arr, store rat_bak and urf_bak,
  * in case branch is taken, and need to retore this data to cpu->rat and cpu->urf
  *
- * when allocate a new CFID_arr entry, z_flag need copy from cfid_arr[cfio.back()]
+ * when allocate a new CFID_arr entry, z_flag and z_urf_index need to copy from cfid_arr[cfio.back()]
  * e.g.
  *  SUB R1, R2, R3
  *  BZ R0, #4
@@ -163,9 +163,10 @@ struct Broadcast_t{
 struct CFID_base{
   int valid;
   int z_flag; // z_flag from last arithmetic instrn, initial to VALID
-  int arithmetic_count; // the number of arithmtic instrn in the flight, initial to 0, when it's 0, BZ or BNZ could be issue to intFU
+  int z_flag_valid; // initial to VALID, when an arithmetic instrn dispatch, set to INVALID; when this instrn finished EX, set to VALID
+  int z_urf_index; // record the rd_tag of last arithmetic instrn, used for set z_flag_valid to VALID
   int rat_bak[NUM_REGS];
-  int urf_bak[NUM_UREGS];
+  // int urf_bak[NUM_UREGS];
   int urf_valid_bak[NUM_UREGS];
 };
 
@@ -187,8 +188,16 @@ struct APEX_CPU
 
   /* unify regster file */
   int urf[NUM_UREGS];
-  int urf_valid[NUM_UREGS];       // function like free list
-  int urf_z_flag[NUM_UREGS]; // remove, z_flag process is headle by CFIDs and CFIO
+  int urf_valid[NUM_UREGS];  // function like free list,
+                              // initial to VALID,
+                              // when a instrn dispatch(rd_tag), set it INVALID, avoid reallocate;
+                              // when a instrn commit, R_RAT point to it, don't change it
+                              // when another instrn with the same rd commited, set it to VALID
+  int urf_z_flag[NUM_UREGS]; // z_flag process is headle by CFIDs and CFIO
+  // int urf_z_flag_valid[NUM_UREGS]; // initial to VALID,
+                                   // when a arithmetic instrn dispatch(rd_tag), set to INVALID,
+                                   // and set associated CFID entry.z_urf_index, tell BZ/BNZ to wait;
+                                   // when this arithmetic instrn commited, set to VALID, telling
 
   /* fetch, DRD, IQ, ROB, intFU, mulFU */
   CPU_Stage stage[NUM_STAGES]; /* Array of 5 CPU_stage */
@@ -221,6 +230,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index=UNUSED_INDEX);
 int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry);
 int URF_getValidIndex(APEX_CPU* cpu);
 int CFID_getValidEntry(APEX_CPU* cpu);
+int setZFlaginCFID_arr(APEX_CPU* cpu, CPU_Stage_base* entry);
 
 /* print/debug functions */
 void print_instruction(CPU_Stage* stage);
