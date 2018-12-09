@@ -84,7 +84,7 @@ struct CPU_Stage_base
   int dispatch_cycle; // this is like unique ID of instrn after dispatch,
                       // could use it to find conresponding instrn in LSQ, ROB and IQ
                       // set at DRD stage
-  int CFID;         // for branch instrns
+  int cfid;         // for branch instrns
   // int ROB_index; // using dispatch_cycle to do ID
   // int IQ_index;
   // int LSQ_index;
@@ -149,6 +149,25 @@ struct Broadcast_t{
   int tag_mem;
 };
 
+/* wired naming
+ * entry->cfid is true cfid that come along with instrn, it is also index of cfid_arr
+ * this is entry of cpu->cfid_arr, store rat_bak and urf_bak,
+ * in case branch is taken, and need to retore this data to cpu->rat and cpu->urf
+ *
+ * when allocate a new CFID_arr entry, z_flag need copy from cfid_arr[cfio.back()]
+ * e.g.
+ *  SUB R1, R2, R3
+ *  BZ R0, #4
+ *  BNZ R0, #16
+ */
+struct CFID_base{
+  int valid;
+  int z_flag; // z_flag from last arithmetic instrn, initial to VALID
+  int arithmetic_count; // the number of arithmtic instrn in the flight, initial to 0, when it's 0, BZ or BNZ could be issue to intFU
+  int rat_bak[NUM_REGS];
+  int urf_bak[NUM_UREGS];
+  int urf_valid_bak[NUM_UREGS];
+};
 
 /* Model of APEX CPU */
 struct APEX_CPU
@@ -184,6 +203,9 @@ struct APEX_CPU
 
   Broadcast_t broadcast;
 
+  CFID_base cfid_arr[NUM_CFID]; // cpu->cfid_arr, entry->cfid is true cfid
+  std::deque<int> cfio; // control Flow instruction order, using cfio.back() as last_CFID, and its size should alway greater than 0
+
   int code_memory_size;
   APEX_Instruction* code_memory; /* Code Memory where instructions are stored */
   int data_memory[DATA_MEM_SIZE]; /* Data Memory */
@@ -198,6 +220,7 @@ int setStagetoNOP(CPU_Stage_base* entry);
 int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index=UNUSED_INDEX);
 int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry);
 int URF_getValidIndex(APEX_CPU* cpu);
+int CFID_getValidEntry(APEX_CPU* cpu);
 
 /* print/debug functions */
 void print_instruction(CPU_Stage* stage);
@@ -217,5 +240,8 @@ int MulFU_init(MulFU_t* stage);
 int LSQ_init(LSQ_t* stage);
 int MEM_init(MEM_t* stage);
 int ROB_init(ROB_t* stage);
+int CFID_init(APEX_CPU* cpu);
+
+int flush_restore(APEX_CPU* cpu, int cfid);
 
 #endif /* CPU_BASE_H */

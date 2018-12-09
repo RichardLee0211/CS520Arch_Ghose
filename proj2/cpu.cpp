@@ -74,6 +74,8 @@ APEX_cpu_init(const char* filename)
   MEM_init(&cpu->mem);
   ROB_init(&cpu->rob);
 
+  CFID_init(cpu);
+  /* data_memory */
   memset(cpu->data_memory, 0xFF, sizeof(int) * DATA_MEM_SIZE); // set to -1 for debug purpose
   cpu->ins_completed=0;
 
@@ -144,11 +146,14 @@ APEX_cpu_run(APEX_CPU* cpu)
 
     cpu->clock++;
     ROB_run(cpu);
-    LSQ_run(cpu);
+
     MEM_run(cpu);
     intFU_run(cpu);
     mulFU_run(cpu);
+
+    LSQ_run(cpu);
     IQ_run(cpu);
+
     DRD_run(cpu);
     Fetch_run(cpu);
 
@@ -158,7 +163,6 @@ APEX_cpu_run(APEX_CPU* cpu)
       printf("================================================================================\n");
       print_all_stage(cpu);
     }
-
 
     if(enable_interactive){
       if(takeCommand(cpu)==-1){
@@ -196,11 +200,8 @@ Fetch_run(APEX_CPU* cpu)
   /* it's done, try to copy data to nextStage */
   if(stage->busy==BUSY_DONE){
     isForwarded = copyStagetoNext(cpu, stage_num);
-    /* set nextStage to BUSY_NEW, next circle nextStage could start a new clock */
-    if(isForwarded == SUCCEED)
-      cpu->drd.busy = BUSY_NEW;
   }
-  /* if it's initial, don't need to copy to next */
+  /* if it's initial, don't need to copy to next, but need to copy from code_memory */
   else if(stage->busy == BUSY_INITIAL){
     isForwarded = SUCCEED;
   }
@@ -282,6 +283,38 @@ DRD_run(APEX_CPU* cpu)
       cpu->urf_valid[urf_index] = INVALID;
       stage->entry.rd_tag = urf_index;
     }
+    /* set cfid lable */
+    assert(cpu->cfio.size() > 0);
+    int old_cfid = cpu->cfio.back();
+    stage->entry.cfid = old_cfid;
+    /* arithmetic instrn */
+    /*
+    if(strcmp(stage->entry.opcode, "ADD")==0 ||
+        strcmp(stage->entry.opcode, "ADDL")==0 ||
+        strcmp(stage->entry.opcode, "SUB")==0 ||
+        strcmp(stage->entry.opcode, "SUBL")==0 ||
+        strcmp(stage->entry.opcode, "MUL")==0
+        ){
+      cpu->cfid_arr[entry->cfid].arithmetic_count++;
+    }
+    */
+    /* if CF_instrn, allocate new CFID for subsequent instrn */
+    // TODO_2: maybe move to copyStagetoNext
+    if(strcmp(stage->entry.opcode, "JUMP")==0 ||
+        strcmp(stage->entry.opcode, "BZ") ==0 ||
+        strcmp(stage->entry.opcode, "BNZ") ==0 ||
+        strcmp(stage->entry.opcode, "JAL") ==0
+        ){
+      int new_cfid = CFID_getValidEntry(cpu);
+      if(new_cfid==FAILED){
+        // TODO: stall DRD stage
+      }
+      cpu->cfid_arr[new_cfid].valid = INVALID;
+      cpu->cfid_arr[new_cfid].z_flag = cpu->cfid_arr[old_cfid].z_flag;
+      memcpy(cpu->cfid_arr[old_cfid].rat_bak, cpu->rat, sizeof(cpu->rat));
+      // memcpy(cpu->cfid_arr[old_cfid].urf_bak, cpu->urf, sizeof(cpu->urf));
+      cpu->cfio.push_back(new_cfid);
+    }
     /* finish job */
     stage->busy--;
   }
@@ -328,7 +361,9 @@ IQ_run(APEX_CPU* cpu){
   int IQ_index_tointFU{UNUSED_INDEX};
   int IQ_index_tomulFU{UNUSED_INDEX};
   for(int i{0}; i<NUM_IQ_ENTRY; ++i){
-    if(stage->entry[i].readyforIssue == VALID){
+    if(stage->entry[i].valid == INVALID &&
+        stage->entry[i].readyforIssue == VALID
+        ){
       /* mul go to mulFU */
       if(strcmp(stage->entry[i].opcode, "MUL")==0){
         if(IQ_index_tomulFU == UNUSED_INDEX ||
@@ -396,14 +431,27 @@ intFU_run(APEX_CPU* cpu)
     else if (strcmp(entry->opcode, "ADD") == 0) {
       entry->buffer = entry->rs1_value + entry->rs2_value;
       entry->buffer_valid = VALID;
-      // if(entry->buffer == 0) cpu->flags |= 0x1;
-      // else cpu->flags &= ~0x1;
+      if(entry->buffer == 0) cpu->cfid_arr[entry->cfid].z_flag |= 0x1;
+      else cpu->cfid_arr[entry->cfid].z_flag &= ~0x1;
+    }
+    else if(strcmp(entry->opcode, "ADDL")==0){
+      entry->buffer = entry->rs1_value + entry->imm;
+      entry->buffer_valid = VALID;
+      if(entry->buffer == 0) cpu->cfid_arr[entry->cfid].z_flag |= 0x1;
+      else cpu->cfid_arr[entry->cfid].z_flag &= ~0x1;
     }
     else if (strcmp(entry->opcode, "SUB") == 0) {
       entry->buffer = entry->rs1_value - entry->rs2_value;
       entry->buffer_valid = VALID;
-      // if(stage->buffer == 0) cpu->flags |= 0x1;
-      // else cpu->flags &= ~0x1;
+      if(entry->buffer == 0) cpu->cfid_arr[entry->cfid].z_flag |= 0x1;
+      else cpu->cfid_arr[entry->cfid].z_flag &= ~0x1;
+    }
+    else if(strcmp(entry->opcode, "SUBL")==0){
+      entry->buffer = entry->rs1_value - entry->imm;
+      entry->buffer_valid = VALID;
+      if(entry->buffer == 0) cpu->cfid_arr[entry->cfid].z_flag |= 0x1;
+      else cpu->cfid_arr[entry->cfid].z_flag &= ~0x1;
+
     }
     else if (strcmp(entry->opcode, "MUL") == 0) {
       fprintf(stderr, "have MUL instrn in intFU stage\n");
@@ -424,41 +472,59 @@ intFU_run(APEX_CPU* cpu)
     else if(strcmp(entry->opcode, "JUMP")==0 ||
         strcmp(entry->opcode, "JMP") ==0
         ){
-      /*
-      stage->buffer= stage->rs1_value + stage->imm;
-      cpu->pc = stage->pc + stage->buffer;
-      if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
+      entry->mem_address= entry->rs1_value + entry->imm;
+      entry->mem_address_valid = VALID;
+      cpu->pc = entry->rs1_value + entry->imm;
+      assert(cpu->pc >= PC_START_INDEX);
       if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
-      setStagetoNOPE(&cpu->stage[F]);
-      setStagetoNOPE(&cpu->stage[DRF]);
-      */
+      flush_restore(cpu, entry->cfid);
     }
     else if(strcmp(entry->opcode, "JAL")==0){
-      // TODO
+      entry->buffer = entry->pc + BYTES_PER_INS;
+      entry->buffer_valid = VALID;
+      entry->mem_address = entry->rs1_value + entry->imm;
+      entry->mem_address_valid = VALID;
+      cpu->pc = entry->rs1_value + entry->imm;
+      assert(cpu->pc >= PC_START_INDEX);
+      if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
+      flush_restore(cpu, entry->cfid);
     }
 
-    else if(strcmp(entry->opcode, "BZ")==0){
-      /*
-      if((cpu->flags&0x1) == 0x1){
-        cpu->pc = stage->pc + stage->imm;
-        if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
+    else if(strcmp(entry->opcode, "BZ")==0 ){
+      /* taken, flush instrn and reload rat urf, reuse this cfid */
+      if((cpu->cfid_arr[entry->cfid].z_flag&0x1) == 0x1){
+        entry->mem_address = entry->pc + entry->imm;
+        entry->mem_address_valid = VALID;
+        cpu->pc = entry->pc + entry->imm;
+        assert(cpu->pc >= PC_START_INDEX);
         if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
-        setStagetoNOPE(&cpu->stage[F]);
-        setStagetoNOPE(&cpu->stage[DRF]);
+        flush_restore(cpu, entry->cfid);
       }
-      */
+      /* not taken, free this cfid_arr entry */
+      else{
+        cpu->cfio.pop_front();
+        assert(cpu->cfio.size()>0);
+        cpu->cfid_arr[entry->cfid].valid = VALID;
+      }
     }
     else if(strcmp(entry->opcode, "BNZ")==0){
-      /*
-      if((cpu->flags&0x1) == 0x0){
-        cpu->pc = stage->pc + stage->imm;
-        if(cpu->pc < PC_START_INDEX ) cpu->pc = PC_START_INDEX;
+      /* taken, flush instrn and reload rat urf, reuse this cfid */
+      if((cpu->cfid_arr[entry->cfid].z_flag&0x1) == 0x0){
+        entry->mem_address = entry->pc + entry->imm;
+        entry->mem_address_valid = VALID;
+        cpu->pc = entry->pc + entry->imm;
+        assert(cpu->pc >= PC_START_INDEX);
         if(cpu->pc > get_pc(cpu->code_memory_size)) cpu->pc = get_pc(cpu->code_memory_size);
-        setStagetoNOPE(&cpu->stage[F]);
-        setStagetoNOPE(&cpu->stage[DRF]);
+        flush_restore(cpu, entry->cfid);
       }
-      */
+      /* not taken, free this cfid_arr entry */
+      else{
+        cpu->cfio.pop_front();
+        assert(cpu->cfio.size()>0);
+        cpu->cfid_arr[entry->cfid].valid = VALID;
+      }
     }
+
     else{
       // NOP, unknown instruction
     }
@@ -509,8 +575,8 @@ mulFU_run(APEX_CPU* cpu){
     if(strcmp(entry->opcode, "MUL")==0){
       entry->buffer = entry->rs1_value * entry->rs2_value;
       entry->buffer_valid = VALID;
-      // if(stage->buffer == 0) cpu->flags |= 0x1;
-      // else cpu->flags &= ~0x1;
+      if(entry->buffer == 0) cpu->cfid_arr[entry->cfid].z_flag |= 0x1;
+      else cpu->cfid_arr[entry->cfid].z_flag &= ~0x1;
     }
     else{
       fprintf(stderr, "got other instrn in mulFU stage\n");

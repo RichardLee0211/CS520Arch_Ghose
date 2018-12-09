@@ -65,7 +65,7 @@ print_instruction(CPU_Stage* stage)
     printf("%s ", "UNKNOWN");
   }
 
-  printf(" %s", stage->stalled ? "STALLED":"UNSTALLED");
+  printf(" %s", stage->stalled ? "STALLED":"");
 }
 
 /* new */
@@ -104,12 +104,26 @@ print_instruction(CPU_Stage_base* stage)
         stage->rs1, stage->rs1_tag, stage->rs1_value,
         stage->rs2, stage->rs2_tag, stage->rs2_value);
   }
+  else if(strcmp(stage->opcode, "ADDL")==0 ||
+      strcmp(stage->opcode, "SUBL")==0
+      ){
+    printf("%s,R%d[U%02d %02d],R%d[U%02d %02d],#%d  ", stage->opcode,
+        stage->rd, stage->rd_tag, stage->buffer,
+        stage->rs1, stage->rs1_tag, stage->rs1_value,
+        stage->imm);
+  }
 
   else if(
       strcmp(stage->opcode, "JUMP")==0 ||
       strcmp(stage->opcode, "JMP")==0
       ){
     printf("%s,R%d[U%02d %02d],#%d ", stage->opcode,
+        stage->rs1, stage->rs1_tag, stage->rs1_value,
+        stage->imm);
+  }
+  else if(strcmp(stage->opcode, "JAL")==0){
+    printf("%s,R%d[U%02d %02d],R%d[U%02d %02d],#%d ", stage->opcode,
+        stage->rd, stage->rd, stage->buffer,
         stage->rs1, stage->rs1_tag, stage->rs1_value,
         stage->imm);
   }
@@ -132,16 +146,16 @@ print_instruction(CPU_Stage_base* stage)
 
 void print_Fetch_stage(Fetch_t* stage){
   printf("%-15s: pc(%04d,%03d,%1d) ", "Fetch",
-      stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
+      stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.cfid);
   print_instruction(&stage->entry);
-  printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
+  printf(" %s %d\n", stage->stalled ? "STALLED": "", stage->busy);
 }
 
 void print_DRD(DRD_t* stage){
   printf("%-15s: pc(%04d,%03d,%1d) ", "DRD",
-      stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
+      stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.cfid);
   print_instruction(&stage->entry);
-  printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
+  printf(" %s %d\n", stage->stalled ? "STALLED": "", stage->busy);
 }
 
 void print_IQ(IQ_t* stage){
@@ -149,9 +163,9 @@ void print_IQ(IQ_t* stage){
   for(int i{0}; i<NUM_IQ_ENTRY; ++i){
     if(stage->entry[i].valid == INVALID){
       printf("%10s[%02d] : pc(%04d,%03d,%1d) ", "IQ", i,
-          stage->entry[i].pc, stage->entry[i].dispatch_cycle, stage->entry[i].CFID);
+          stage->entry[i].pc, stage->entry[i].dispatch_cycle, stage->entry[i].cfid);
       print_instruction(&stage->entry[i]);
-      printf("\n");
+      printf(" %s \n", stage->entry[i].readyforIssue==VALID ? "READY" : "");
       empty = INVALID;
     }
   }
@@ -166,7 +180,7 @@ void print_ROB(ROB_t* stage){
     return;
   }
   for(auto& i: stage->entry){
-    printf("%15s: pc(%04d,%03d,%1d) ", "ROB ",  i.pc, i.dispatch_cycle, i.CFID);
+    printf("%15s: pc(%04d,%03d,%1d) ", "ROB ",  i.pc, i.dispatch_cycle, i.cfid);
     // TODO: ??
     print_instruction(&i);
     printf(" %s", i.completed==VALID ? "COMPLETE" : "");
@@ -181,9 +195,9 @@ void print_intFU(IntFU_t* stage){
   }
   else{
     printf("%-15s: pc(%04d,%03d,%1d) ", "intFU",
-        stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
+        stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.cfid);
     print_instruction(&stage->entry);
-    printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
+    printf(" %s %d\n", stage->stalled ? "STALLED": "", stage->busy);
   }
 }
 
@@ -194,9 +208,9 @@ void print_mulFU(MulFU_t* stage){
   }
   else{
     printf("%-15s: pc(%04d,%03d,%1d) ", "mulFU",
-        stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
+        stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.cfid);
     print_instruction(&stage->entry);
-    printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
+    printf(" %s %d\n", stage->stalled ? "STALLED": "", stage->busy);
   }
 }
 
@@ -207,9 +221,9 @@ void print_MEM(MEM_t* stage){
   }
   else{
     printf("%-15s: pc(%04d,%03d,%1d) ", "MEM",
-        stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.CFID);
+        stage->entry.pc, stage->entry.dispatch_cycle, stage->entry.cfid);
     print_instruction(&stage->entry);
-    printf(" %s %d\n", stage->stalled ? "STALLED": "UNSTALLED", stage->busy);
+    printf(" %s %d\n", stage->stalled ? "STALLED": "", stage->busy);
   }
 }
 
@@ -219,7 +233,7 @@ void print_LSQ(LSQ_t* stage){
     return;
   }
   for(auto& i: stage->entry){
-    printf("%15s: pc(%04d,%03d,%1d) ", "LSQ",  i.pc, i.dispatch_cycle, i.CFID);
+    printf("%15s: pc(%04d,%03d,%1d) ", "LSQ",  i.pc, i.dispatch_cycle, i.cfid);
     print_instruction(&i);
     printf(" %s\n", i.mem_address_valid == VALID ? "ADDR_VALID": "");
   }
@@ -382,6 +396,26 @@ int LSQ_init(LSQ_t* stage){
   return 0;
 }
 
+int CFID_init(APEX_CPU* cpu){
+  int i=0;
+  cpu->cfid_arr[i].valid = INVALID;
+  cpu->cfid_arr[i].z_flag = VALID;
+  memset(cpu->cfid_arr[i].rat_bak, 0xFF, sizeof(cpu->cfid_arr[i].rat_bak));
+  // memset(cpu->cfid_arr[i].urf_bak, 0xFF, sizeof(cpu->cfid_arr[i].urf_bak));
+  memset(cpu->cfid_arr[i].urf_valid_bak, 0xFF, sizeof(cpu->cfid_arr[i].urf_bak));
+  cpu->cfio.push_back(0);
+
+  for(i=1; i<NUM_CFID; i++){
+    cpu->cfid_arr[i].valid = VALID;
+    cpu->cfid_arr[i].z_flag = VALID;
+    memset(cpu->cfid_arr[i].rat_bak, 0xFF, sizeof(cpu->cfid_arr[i].rat_bak));
+    // memset(cpu->cfid_arr[i].urf_bak, 0xFF, sizeof(cpu->cfid_arr[i].urf_bak));
+    memset(cpu->cfid_arr[i].urf_valid_bak, 0xFF, sizeof(cpu->cfid_arr[i].urf_bak));
+  }
+
+  return 0;
+}
+
 
 /* have some basic function here */
 /* old */
@@ -469,7 +503,11 @@ int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
     }
   }
   /* if got all rs_values or never need one, set readyforIssue */
-  if(failed == INVALID){
+  /* BZ and BNZ readyforIssue bits is dependent on last arithmetic instrn */
+  if(strcmp(entry->opcode, "BZ")!=0 &&
+      strcmp(entry->opcode, "BNZ")!=0 &&
+      failed == INVALID
+      ){
     entry->readyforIssue = VALID;
   }
   return 0;
@@ -481,6 +519,50 @@ int isEntryReadyforIssue(APEX_CPU*, CPU_Stage_base* entry){
   }
 }
 */
+
+/* helper functions of flush_restore()
+ * flush IQ, LSQ, ROB entries that match the cfid
+ */
+int flush(APEX_CPU* cpu, int cfid){
+  for(int i=0; i<NUM_IQ_ENTRY; ++i){
+    if(cpu->iq.entry[i].valid == INVALID && cpu->iq.entry[i].cfid == cfid){
+      cpu->iq.entry[i].valid = VALID;
+    }
+  }
+
+  while(cpu->lsq.entry.size() >0 &&
+      cpu->lsq.entry.back().cfid == cfid
+      ){
+    cpu->lsq.entry.pop_back();
+  }
+
+  while(cpu->rob.entry.size() >0 &&
+      cpu->rob.entry.back().cfid == cfid){
+    cpu->rob.entry.pop_back();
+  }
+
+  return 0;
+}
+
+/* public to cpu.cpp
+ * flush F, DRD, and
+ * flush IQ, LSQ, ROB according to the cfid(all cfids behind the cfid)
+ * retore cpu->rat and cpu->urf from cpu->cfid_arr[cfid]
+ */
+int flush_restore(APEX_CPU* cpu, int cfid){
+  setStagetoNOP(&(cpu->fetch_stage.entry));
+  setStagetoNOP(&(cpu->drd.entry));
+  assert(cpu->cfio.size()>0);
+  int temp=0;
+  while((temp=cpu->cfio.back())!=cfid){
+    flush(cpu, temp);
+    cpu->cfid_arr[temp].valid = VALID;
+    cpu->cfio.pop_back();
+  }
+  memcpy(cpu->rat, cpu->cfid_arr[cfid].rat_bak, sizeof(cpu->rat));
+  // memcpy(cpu->urf, cpu->cfid_arr[cfid].urf_bak, sizeof(cpu->urf));
+  return 0;
+}
 
 int URF_getValidIndex(APEX_CPU* cpu){
   int i{0};
@@ -513,6 +595,17 @@ int LSQ_getValidEntry(APEX_CPU* cpu){
     return 0;
   else
     return FAILED;
+}
+
+int CFID_getValidEntry(APEX_CPU* cpu){
+  assert(cpu->cfio.size()>0);
+  int j=cpu->cfio.back();
+  for(int i=j+1; (i%NUM_CFID) != j; i++){
+    if(cpu->cfid_arr[i].valid == VALID){
+      return i;
+    }
+  }
+  return FAILED;
 }
 
 CPU_Stage_base*
@@ -561,6 +654,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
       return FAILED;
     }
     nextStage->entry= stage->entry;
+    nextStage->busy = BUSY_NEW;
     return SUCCEED;
   }
   /* dispatch logic, DRD->IQ, DRD->ROB, DRD->LSQ */

@@ -168,6 +168,74 @@ TODO: last point, why forward value to be stored, why not address of memory??
 
 ## real machines: implementations of register renaming, page.197
 
+techniques for Avoiding or reducing the penalty of Braching, page.222
+--------------------------------------------------------------------------------
+table of content
+
+- Branch Handling: Early compares, page.223
+- Unconditionallly Fetching Instruction Stream Starting at the target
+- static Prediction
+- Delayed Braching and Delayed Branching with Squashing
+- Dynamic Branch Prediction:
+    + Branch History Table
+    + Branch Target Buffers
+    + ALternate Stream Prefetching Based on Prediction
+- Separate Branch Unit
+- Predicated Execution(aka conditional assignments/guarded execution)
+- Branch Folding
+- Tow-level Branch Prediction
+- Hybrid Branch Handling Techniques & Others
+
+Speculative Execution, page.266
+--------------------------------------------------------------------------------
+
+PART IV: Memory System
+================================================================================
+
+techniques for Improving Memory Performance, page.288
+--------------------------------------------------------------------------------
+- Memory interleaving
+- Cache memory
+- Newer memory interfaces
+- prefetching
+- Stream buffers
+- Store bypassing by loads and predicting store bypasing("dynamic memory disambiguation")
+- Cache miss prediction
+- Simulataneous multithreading
+
+### RAM Devices, page.289
+more about hardware working principle
+
+### DRAM Technologies, page.303
+
+### Memory Interleaving, page.309
+
+### Early DRAM memory System, page.318
+
+### Modern Memory System Based on DDRs, page.319
+
+### Cache Memory Systems, page.328
+
+#### Cache Replacement Algorithms, page.378
+
+### Prefetching in Contemporary Processors, page.400
+
+PART VI: Multicore Microprocessors and Parallel Systems, page.445
+================================================================================
+
+
+
+### The abstraction of Shared Memory in Shared Memory MPs, page.471
+
+### the sequential Consitency Model: Details, page.474
+
+### Other Cache coherence protocols and implementation, page.488
+
+PART VII: VILW and EPIC Approaches to Exploiting LIP, page.502
+================================================================================
+
+
+I will get ride of printed version any way, hard to read without marks
 # CS520 Arch
 password: KOoLCHiPs!18
 I like this style
@@ -175,20 +243,36 @@ I like this style
 page. 29
 master-slaver latch
 
-## class 1 week 3
-I feel like I am missing in the notebook
-
 sign-extension: 10bits to 32 bits, fill the extended bits with sign bit value
 
-## class 1 week 4
-it's realy fast course
-I don't even know what's him talking about
+question to ask
+- SSE interview
 
-## class 1 week 5
+things to review for exam 2
+--------------------------------------------------------------------------------
+- Low order interleaving in a memory system
+- Row buffer hits in a DRAM memory system
+- increasing the cache line size will
+- Hardware-initiated prefetching
+- TSO model of memory consistency
+- MESI cache coherence protocol
+- Spin locks
+- Caching of lock variables in a shared memory multiprocessor
 
-## class 1 week 6
+x Tormasolu CDC6600 scoreboarding
+x details of Branch predictor
+x DRAM Details
+x interconnection Networks
 
-## class 2 week 6
-full dependence??
+DONE: renaming
+O software interlock
+DONE: forwarding
+DONE: precise state on interrupts
+O mem heriati
+O different cache designs and trade offs
+O prefetching
+O Flynn's taxonomy
 
-## class 2 week 7
+15 T/F question
+question II
+question III

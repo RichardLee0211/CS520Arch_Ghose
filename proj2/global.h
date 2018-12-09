@@ -19,9 +19,16 @@ typedef unsigned int uint;
  * other modules then read them
  */
 
-/* wenchen regster valid bits */
+/* regster valid bits */
 #define NUM_REGS 16 /* require R0~R15 */
 #define NUM_UREGS 40 /* at least two times of NUM_REGS, one for most recent, one for commited */
+
+#define NUM_IQ_ENTRY 16
+#define NUM_ROB_ENTRY 32
+#define NUM_LSQ_ENTRY 20
+#define NUM_CFID 8
+#define OPCODE_SIZE 8
+
 
 /* valid flag status, because they are easy to initial with memset */
 #define VALID 0
@@ -55,15 +62,10 @@ typedef unsigned int uint;
 #define BUSY_DEFAULT 1      // set by stage, when find BUSY_INITIAL
 #define BUSY_MUL_DELAY 2
 #define BUSY_MEM_DELAY 3
-#define BUSY_ALMOST_DONE 1 // old, if nextStage is almost done, copy stage to nextstage latch
+// #define BUSY_ALMOST_DONE 1 // old, if nextStage is almost done, copy stage to nextstage latch
 
 
 #define DATA_MEM_SIZE 4096
-
-#define NUM_IQ_ENTRY 16
-#define NUM_ROB_ENTRY 32
-#define NUM_LSQ_ENTRY 20
-#define OPCODE_SIZE 8
 
 #define FAILED -1 // for getValidEntry functions,
 #define SUCCEED 0

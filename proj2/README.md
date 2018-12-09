@@ -21,13 +21,6 @@ stage: src1_valid src1_tag
 broadcast_tag
 broadcast_data
 
-IF R_RAT[src1] != INVALID
-    pickup from ARF[R_RAT[src1]]
-    stage->src1_valid = VALID
-ELSE IF RAT[src1] != INVALID
-    pickup from URF[RAT[src1]]
-    stage->src1_valid = VALID
-ELSE IF
 
 ### order of excute
 - fetch
@@ -41,23 +34,25 @@ ELSE IF
 
 stage():
   stage->stalled = UNSTALLED
-  if stage->busy== NEW_DATA
+  if stage->busy== BUSY_NEW
     stage->busy = STAGE_DELAY
-  if stage->busy != DONE
+
+  if stage->busy > BUSY_DONE
     work on stage data;
     stage->busy--;
+
   if stage->busy==DONE
     if copytoNextStage() == -1
       stage->stalled = STALLED
     else
-      copy data from latch
-      stage->busy == NEW_DATA
+      stage->busy = BUSY_WAIT
 
 copytoNextStage():
-  if canIcopy()==-1
+  if nextStage->busy > BUSY_DONE || nextStage->stalled == STALLED
     return -1;
   else
     do copy;
+    nextStage->busy = BUSY_NEW
     return 0;
 
 ### ISA:
@@ -82,9 +77,9 @@ copytoNextStage():
 - [ ] BZ, #-12
 - [ ] BNZ, #12
 - [ ] JUMP, RS1, #12 /* absolute addr */
-- [ ] HALT
 - [ ] JAL RD R1 #NUM
         RET implement as JUMP RD #0 /* RD saves the next addr of JAL */
+- [ ] HALT
 
 // may not be a good idea when it comes to out of order excution
 // - [ ] PRINT_REG R1
@@ -92,17 +87,49 @@ copytoNextStage():
 - [ ] NOP
 
 ### questions
-- where renaming actually happen, D/RF or IQ ?:
+#### where renaming actually happen, D/RF or IQ ?:
   DRD stage, decode/renaming/dispatch
-- what data Struct RAT and R_RAT points to ?:
+#### what data Struct RAT and R_RAT points to ?:
   RAT[R1] = UX, R_RAT[R1] = UY, after RAT[R1] is update, save old value in R_RAT[R1], used for recovering
-- how file_parse.c functions become useable in cpu.c, without include ?:
+#### how file_parse.c functions become useable in cpu.c, without include ?:
     in the original code, public file_parser function is declared in cpu.h, it's like one .h file and two implement .c file
-- don't need write back stage ?: do wirte back operations in the end of intFU, mulFU, memFU
+#### don't need write back stage ?: do wirte back operations in the end of intFU, mulFU, memFU
 How to do writeback operation?
 At the end of circle T,
-- intFU finish calculating of "ADD R1(U1), R2(U2), R3(U3)". Then it copies result to broadcast_data, and associated ROB entry, and set the ROB entry completed
-- ROB check entry at the head, if it's completed, set R_RAT[R1]=U1 and retire the instrn by moving head pointer forward
+  - intFU finish calculating of "ADD R1(U1), R2(U2), R3(U3)". Then it copies result to broadcast_data, and associated ROB entry, and set the ROB entry completed
+  - ROB check entry at the head, if it's completed, set R_RAT[R1]=U1 and retire the instrn by moving head pointer forward
+
+#### TODO: STORE R1 R2 #3,
+      when waiting in IQ, it doesn't need R1 ready, only need R2 ready
+      when waiting in LSQ, it check addr_valid, and could wait for R1 ready
+
+#### TODO_2: how does it organize spaces
+this code is aim to wanna access a entry quickly, and queue it in any order
+```cpp
+  my_Class array[NUM];
+  std::deque<my_Class&> q;
+  q.push_back(array[0]);
+```
+a better way
+```cpp
+  my_Class array[NUM];
+  std::deque<int> q; // q store the array_index
+  q.push_back(0);
+```
+
+#### stage execution order
+    ROB_run(cpu);   // commit instrns
+
+    MEM_run(cpu);   // =>ROB, =>broadcast
+    intFU_run(cpu); // =>ROB, =>broadcast or =>LSQ
+    mulFU_run(cpu); // =>ROB, =>broadcast
+
+    LSQ_run(cpu);   // fetch value from RAT or broadcast =>MEM
+    IQ_run(cpu);    // fetch value from RAT or broadcast =>intFU or =>mulFU
+
+    DRD_run(cpu);   // =>ROB, =>IQ or =>LSQ
+    Fetch_run(cpu); // =>DRD
+
 
 
 ### some trick about vim
