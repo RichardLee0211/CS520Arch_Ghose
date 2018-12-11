@@ -131,6 +131,8 @@ APEX_cpu_run(APEX_CPU* cpu)
 
     cpu->clock++;
     if(ROB_run(cpu) == FAILED){
+      print_regs(cpu); // print out regs and data_mem at the end of simulation for debug purpose
+      print_data_memory(cpu->data_memory);
       printf("(apex) >> Simulation Complete");
       break;
     }
@@ -752,7 +754,7 @@ takeCommand(APEX_CPU* cpu){
   }
 
 COMMAND:
-  printf("\ntypein command: initialize(r), simulate(sim) <n>, display(p), quit(q)\n");
+  printf("\ntypein command: initialize(r), simulate(sim) <n>, display(p, pu), quit(q)\n");
   printf("(apex) >>");
 
   char command[64];
@@ -792,11 +794,18 @@ COMMAND:
   else if(strcmp(command, "display")==0 ||
       strcmp(command, "p")==0
       ){
-    // print_all_stage(cpu->stage); // don't need to
-    // print_flag_reg(&cpu->flags);
     print_regs(cpu);
     print_data_memory(cpu->data_memory);
     goto COMMAND;
+  }
+
+  else if(strcmp(command, "print_urf")==0 ||
+      strcmp(command, "pu") ==0
+      ){
+      print_R_RAT(cpu);
+      print_RAT(cpu);
+      print_URF(cpu);
+      goto COMMAND;
   }
 
   else if(strcmp(command, "next")==0 ||

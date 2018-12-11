@@ -245,8 +245,8 @@ master-slaver latch
 
 sign-extension: 10bits to 32 bits, fill the extended bits with sign bit value
 
-question to ask
-- SSE interview
+- How to ace an interview pdf
+- Google how to crack an interview
 
 things to review for exam 2
 --------------------------------------------------------------------------------

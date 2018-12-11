@@ -70,6 +70,8 @@ typedef unsigned int uint;
 #define FAILED -1 // for getValidEntry functions,
 #define SUCCEED 0
 
+#define NUM_DATA_MEM_PRINT 100
+
 /* Set this flag to 1 to enable debug messages */
 #define ENABLE_DEBUG_MESSAGES 1
 

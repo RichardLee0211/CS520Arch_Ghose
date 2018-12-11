@@ -241,6 +241,9 @@ void print_regs(int* regs, int* regs_valid);
 void print_regs(APEX_CPU* cpu);
 void print_data_memory(int* data_memory);
 void print_flag_reg(uint32_t* flag_reg);
+void print_URF(APEX_CPU* cpu);
+void print_RAT(APEX_CPU* cpu); // TODO
+void print_R_RAT(APEX_CPU* cpu);
 
 int Fetch_stage_init(Fetch_t* stage);
 int DRD_init(DRD_t* stage);

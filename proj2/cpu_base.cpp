@@ -239,6 +239,33 @@ void print_LSQ(LSQ_t* stage){
   }
 }
 
+void print_R_RAT(APEX_CPU* cpu){
+  for(int i{0}; i<NUM_REGS; ++i){
+    if(i%8==0) printf("R_RAT[%02d]: ", i);
+    printf("%02d  ", cpu->r_rat[i]);
+    if((i%8)==7) printf("\n");
+  }
+  printf("\n");
+}
+
+void print_RAT(APEX_CPU* cpu){
+  for(int i{0}; i<NUM_REGS; ++i){
+    if(i%8==0) printf("RAT[%02d]: ", i);
+    printf("%02d  ", cpu->rat[i]);
+    if((i%8)==7) printf("\n");
+  }
+  printf("\n");
+}
+
+void print_URF(APEX_CPU* cpu){
+  for(int i=0; i<NUM_UREGS; ++i){
+    if(i%10==0) printf("URF[%02d]: ", i);
+    printf("%3d:%c  ", cpu->urf[i], cpu->urf_valid[i]==VALID ? 'V' : 'I');
+    if(i%10==9) printf("\n");
+  }
+  printf("\n");
+}
+
 /*
  * old
  * Debug function which dumps the cpu stage content
@@ -301,7 +328,7 @@ void print_regs(APEX_CPU* cpu){
 }
 
 void print_data_memory(int* data_memory){
-  for(int i=0; i<100; ++i){
+  for(int i=0; i<NUM_DATA_MEM_PRINT; ++i){
     if(i%8==0) printf("DATA_MEM[%02d]: ", i);
     printf("%3d  ", data_memory[i]);
     if(i%8==7) printf("\n");
@@ -500,22 +527,19 @@ int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
       failed = VALID;
     }
   }
-  /* if got all rs_values or never need one, set readyforIssue */
-  /* JUMP and JAL is readyforIssue when it gets resource, like other instrns
-   */
-  if(strcmp(entry->opcode, "BZ")!=0 &&
-      strcmp(entry->opcode, "BNZ")!=0 &&
-      failed == INVALID
-      ){
-    entry->readyforIssue = VALID;
-  }
   /* BZ and BNZ readyforIssue bits is dependent on last arithmetic instrn */
-  else if(strcmp(entry->opcode, "BZ")==0 &&
+  if(strcmp(entry->opcode, "BZ")==0 &&
       strcmp(entry->opcode, "BNZ")==0
       ){
     if(cpu->cfid_arr[entry->cfid].z_flag_valid == VALID){
       entry->readyforIssue = VALID;
     }
+  }
+  /* if got all rs_values or never need one, set readyforIssue */
+  /* JUMP and JAL is readyforIssue when it gets resource, like other instrns
+   */
+  else if(failed == INVALID){
+    entry->readyforIssue = VALID;
   }
   // these are not readyforIssue
   else{
@@ -532,27 +556,56 @@ int isEntryReadyforIssue(APEX_CPU*, CPU_Stage_base* entry){
 
 /* helper functions of flush_restore()
  * flush IQ, LSQ, ROB entries that match the cfid
+ * and reset urf_valid to VALID according to rd_tag
  */
 int flush(APEX_CPU* cpu, int cfid){
+  assert(cfid>=0 && cfid<NUM_CFID);
+  /* IQ */
   for(int i=0; i<NUM_IQ_ENTRY; ++i){
     if(cpu->iq.entry[i].valid == INVALID && cpu->iq.entry[i].cfid == cfid){
       cpu->iq.entry[i].valid = VALID;
     }
   }
-
+  /* LSQ */
   while(cpu->lsq.entry.size() >0 &&
       cpu->lsq.entry.back().cfid == cfid
       ){
     cpu->lsq.entry.pop_back();
   }
-
+  /* ROB */
   while(cpu->rob.entry.size() >0 &&
-      cpu->rob.entry.back().cfid == cfid){
+      cpu->rob.entry.back().cfid == cfid
+      ){
+    // reset urf_valid of prefetch instrns' rd_tag
+    if(cpu->rob.entry.back().rd_tag != UNUSED_REG_INDEX){
+      cpu->urf_valid[cpu->rob.entry.back().rd_tag] = VALID;
+    }
     cpu->rob.entry.pop_back();
   }
 
   return 0;
 }
+
+/* don't restore urf_valid like this
+ * memcpy(cpu->urf_valid, cpu->cfid_arr[cfid].urf_valid_bak, sizeof(cpu->urf_valid));
+ * because there are like two parts that change urf_valid when prefetch
+ * one is prefetch instrn in DRD, it may allocate new UR and change UR_valid=INVALID
+ * one is commited instrn in ROB, it may deallocate UR and change UR_valid=VALID
+ * only former part of changes needs to restore
+ * to remove former part of changes, need track prefetch instrn and set it back to VALID
+ */
+/*
+int restore_urf_valid(APEX_CPU* cpu, int cfid){
+  for(int i=0; i<NUM_UREGS; ++i){
+    if(cpu->urf_valid[i]==INVALID &&
+        cpu->cfid_arr[cfid].urf_valid_bak[i]==VALID
+      ){
+      cpu->urf_valid[i] = VALID;
+    }
+  }
+  return 0;
+}
+*/
 
 /* public to cpu.cpp
  * flush F, DRD, and
@@ -570,7 +623,7 @@ int flush_restore(APEX_CPU* cpu, int cfid){
     cpu->cfio.pop_back();
   }
   memcpy(cpu->rat, cpu->cfid_arr[cfid].rat_bak, sizeof(cpu->rat));
-  memcpy(cpu->urf_valid, cpu->cfid_arr[cfid].urf_valid_bak, sizeof(cpu->urf_valid));
+  // restore_urf_valid(cpu, cfid);
   return 0;
 }
 
@@ -611,8 +664,8 @@ int CFID_getValidEntry(APEX_CPU* cpu){
   assert(cpu->cfio.size()>0);
   int j=cpu->cfio.back();
   for(int i=j+1; (i%NUM_CFID) != j; i++){
-    if(cpu->cfid_arr[i].valid == VALID){
-      return i;
+    if(cpu->cfid_arr[i%NUM_CFID].valid == VALID){
+      return i%NUM_CFID;
     }
   }
   return FAILED;
