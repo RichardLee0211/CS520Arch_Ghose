@@ -1,4 +1,5 @@
 # testing BZ and BNZ
+# be careful with urf_valid restore
 MOVC R0 #0
 MOVC R1 #1
 MOVC R2 #2

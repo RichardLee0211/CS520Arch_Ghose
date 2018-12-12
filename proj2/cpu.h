@@ -19,4 +19,4 @@ APEX_cpu_run(APEX_CPU* cpu);
 void
 APEX_cpu_stop(APEX_CPU* cpu);
 
-#endif
+#endif /* _APEX_CPU_H_ */

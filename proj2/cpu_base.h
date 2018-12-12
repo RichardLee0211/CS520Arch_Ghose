@@ -4,8 +4,9 @@
 #include"global.h"
 
 #include<inttypes.h>
-#include<queue>
+// #include<queue>
 #include<deque>
+#include<set>
 
 /* cpu module-wise data */
 enum
@@ -57,6 +58,8 @@ struct CPU_Stage_base
 {
   int valid; // work for IQ entry. LSQ and ROB using std::deque
   int readyforIssue; // work for IQ entry, set to VALID when ready for issue
+  int readyforMEM; // work for LSQ entry, set to VALID when STORE R1 and address is ready
+                   //                                  when LOAD address is ready
   int completed;  // work for ROB entry when check for retirement,
                   // set to VALID by intFU, mulFU, and mem
 
@@ -138,13 +141,22 @@ struct ROB_t{
   int stalled;
 };
 
+struct Broadcast_base{
+  int tag;
+  int data;
+  Broadcast_base(int tag, int data): tag{tag}, data{data}{
+  }
+};
+
+bool operator<(const Broadcast_base& lhl, const Broadcast_base& lhr);
+
 struct Broadcast_t{
+  std::set<Broadcast_base> entry;
+  // TODO: should delete following
   int data_intFU;
   int tag_intFU;
-
   int data_mulFU;
   int tag_mulFU;
-
   int data_mem;
   int tag_mem;
 };
@@ -228,6 +240,7 @@ int setStagetoNOPE(CPU_Stage* stage); // old
 int setStagetoNOP(CPU_Stage_base* entry);
 int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index=UNUSED_INDEX);
 int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry);
+int LSQ_STORE_fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry);
 int URF_getValidIndex(APEX_CPU* cpu);
 int CFID_getValidEntry(APEX_CPU* cpu);
 int setZFlaginCFID_arr(APEX_CPU* cpu, CPU_Stage_base* entry);

@@ -1,7 +1,7 @@
 # Compile and Link flags, libraries
 CC=g++
 CFLAGS= -g -Wall -std=c++11
-LDFLAGS=
+LDFLAGS= -g
 LIBS=
 
 PROGS= test

@@ -37,7 +37,8 @@ APEX_cpu_init(const char* filename)
     return NULL;
   }
 
-  APEX_CPU* cpu = (APEX_CPU*)malloc(sizeof(*cpu));
+  // APEX_CPU* cpu = (APEX_CPU*)malloc(sizeof(*cpu));
+  APEX_CPU* cpu = new APEX_CPU();
   if (!cpu) {
     fprintf(stderr, "allocate cpu space error\n");
     return NULL;
@@ -74,6 +75,7 @@ APEX_cpu_init(const char* filename)
   MEM_init(&cpu->mem);
   ROB_init(&cpu->rob);
 
+  /* Broadcast and CFID init */
   CFID_init(cpu);
   /* data_memory */
   memset(cpu->data_memory, 0xFF, sizeof(int) * DATA_MEM_SIZE); // set to -1 for debug purpose
@@ -414,7 +416,7 @@ intFU_run(APEX_CPU* cpu)
 
   /* do the job */
   if(stage->busy > BUSY_DONE){
-    // stage->entry.opcode
+    assert(entry->readyforIssue == VALID);
     if (strcmp(entry->opcode, "STORE") == 0 ||
         strcmp(entry->opcode, "LOAD") == 0
         ) {
@@ -630,14 +632,63 @@ mulFU_run(APEX_CPU* cpu){
 
 int
 LSQ_run(APEX_CPU* cpu){
-  // MEM_t* nextStage = &cpu->mem;
   LSQ_t* stage = &cpu->lsq;
   if(stage->entry.size() == 0){
     return 0;
   }
+  /* fetch R1 value for STORE and set readyforMEM bit */
+  for(auto& i: cpu->lsq.entry){
+    if(strcmp(i.opcode, "STORE")==0){
+      LSQ_STORE_fetchValue(cpu, &i);
+      if(i.mem_address_valid == VALID && i.rs1_value_valid == VALID){
+        i.readyforMEM = VALID;
+      }
+    }
+    else if(strcmp(i.opcode, "LOAD")==0){
+      if(i.mem_address_valid == VALID){
+        i.readyforMEM = VALID;
+      }
+    }
+    else{
+      fprintf(stderr, "wrong instrns in LSQ\n");
+      assert(0);
+    }
+  }
+
+  /* copy instrn to MEM */
+  // TODO_3: should use ref as front return reference
   CPU_Stage_base& it = stage->entry.front();
-  if(it.mem_address_valid == VALID){
-    copyStagetoNext(cpu, LSQ);
+  if(strcmp(it.opcode, "LOAD")==0){
+    if(it.readyforMEM == VALID){
+      int res = copyStagetoNext(cpu, LSQ);
+      if(res==SUCCEED){
+        stage->entry.pop_front();
+      }
+    }
+  }
+  /* STORE need R1_value valid, addr valid, ROB head, LSQ head */
+  else if(strcmp(it.opcode, "STORE")==0){
+    if(it.readyforMEM == INVALID){
+      return 0;
+    }
+    /* every instrn before STORE is completed */
+    auto rob_it = cpu->rob.entry.begin();
+    while(rob_it->completed == VALID){
+      ++rob_it;
+    }
+    /* don't satisfy ROB head requirement */
+    if(rob_it->dispatch_cycle != it.dispatch_cycle){
+      return 0;
+    }
+    /* now, STORE is readyforMEM, headofROB, headofLSQ */
+    int res = copyStagetoNext(cpu, LSQ);
+    if(res==SUCCEED){
+      stage->entry.pop_front();
+    }
+  }
+  else{
+    fprintf(stderr, "wrong instrns in LSQ\n");
+    assert(0);
   }
   return 0;
 }
@@ -731,10 +782,17 @@ ROB_run(APEX_CPU* cpu){
         cpu->r_rat[it.rd] = it.rd_tag;
         assert(it.buffer_valid == VALID);
         cpu->urf[it.rd_tag] = it.buffer;
+        /* remove broadcast entry as it has been commited to urf */
+        auto* bc_entry = &cpu->broadcast.entry;
+        assert(bc_entry->size()>0);
+        assert(bc_entry->find(Broadcast_base(it.rd_tag, it.buffer))!=bc_entry->end());
+        bc_entry->erase(bc_entry->find(Broadcast_base(it.rd_tag, it.buffer)));
+        /* end of handle rd_tag and buffer */
       }
       /* STORE, BZ, BNZ, JMP, NOP */
       else{
       }
+      /* commit instrn */
       entry->pop_front();
     }
     /* head is not completed */
@@ -754,7 +812,7 @@ takeCommand(APEX_CPU* cpu){
   }
 
 COMMAND:
-  printf("\ntypein command: initialize(r), simulate(sim) <n>, display(p, pu), quit(q)\n");
+  printf("typein command: initialize(r), simulate(sim) <n>, display(p, pu), quit(q)\n");
   printf("(apex) >>");
 
   char command[64];

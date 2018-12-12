@@ -317,3 +317,99 @@ print_regs
 ARF[00] 000 001 002 003 004 005 006 007
 ARF[08] 008 009 010 011 012 013 014 015
 ```
+
+#### A problem is,
+when a instrn is completed in ROB but can't commited because of instrn before hand
+then its rd_value get to have a way to forward to DRD and IQ stage
+```shell
+  ================================================================================
+  after Clock Cycle #: 9
+  ================================================================================
+  ROB : pc(4008,005,0) STORE,R1[U01 -1],R0[U00 00],#0
+  ROB : pc(4012,006,0) ADD,R2[U02 02],R1[U01 01],R1[U01 01]  COMPLETE
+  ROB : pc(4016,007,0) ADD,R3[U03 04],R2[U02 02],R2[U02 02]  COMPLETE
+  ROB : pc(4020,008,0) ADD,R4[U04 -1],R2[U02 02],R2[U02 02]
+  ROB : pc(4024,009,0) ADD,R5[U05 -1],R2[U02 -1],R2[U02 -1]
+
+  MEM            : pc(4008,005,0) STORE,R1[U01 01],R0[U00 00],#0   1
+  LSQ : empty
+
+  intFU          : pc(4020,008,0) ADD,R4[U04 -1],R2[U02 02],R2[U02 02]   10
+  mulFU          : pc(0000,-01,-1) UNKNOWN   -1
+  IQ[00] : pc(4024,009,0) ADD,R5[U05 -1],R2[U02 -1],R2[U02 -1]
+
+  DRD            : pc(4028,-01,-1) ADD,R6[U-1 -1],R2[U-1 -1],R2[U-1 -1]   10
+  Fetch          : pc(4032,-01,-1) ADD,R7[U-1 -1],R2[U-1 -1],R2[U-1 -1]   10
+
+  typein command: initialize(r), simulate(sim) <n>, display(p, pu), quit(q)
+  (apex) >>n
+  ================================================================================
+  after Clock Cycle #: 10
+  ================================================================================
+  ROB : pc(4008,005,0) STORE,R1[U01 01],R0[U00 00],#0  COMPLETE
+  ROB : pc(4012,006,0) ADD,R2[U02 02],R1[U01 01],R1[U01 01]  COMPLETE
+  ROB : pc(4016,007,0) ADD,R3[U03 04],R2[U02 02],R2[U02 02]  COMPLETE
+  ROB : pc(4020,008,0) ADD,R4[U04 04],R2[U02 02],R2[U02 02]  COMPLETE
+  ROB : pc(4024,009,0) ADD,R5[U05 -1],R2[U02 -1],R2[U02 -1]
+  ROB : pc(4028,010,0) ADD,R6[U06 -1],R2[U02 -1],R2[U02 -1]
+
+  MEM            : empty
+  LSQ : empty
+
+  intFU          : empty
+  mulFU          : pc(0000,-01,-1) UNKNOWN   -1
+  IQ[00] : pc(4024,009,0) ADD,R5[U05 -1],R2[U02 -1],R2[U02 -1]
+  IQ[01] : pc(4028,010,0) ADD,R6[U06 -1],R2[U02 -1],R2[U02 -1]
+
+  DRD            : pc(4032,-01,-1) ADD,R7[U-1 -1],R2[U-1 -1],R2[U-1 -1]   10
+  Fetch          : pc(4036,-01,-1) ADD,R8[U-1 -1],R2[U-1 -1],R2[U-1 -1]   10
+
+  typein command: initialize(r), simulate(sim) <n>, display(p, pu), quit(q)
+  (apex) >>
+```
+broadcast need hold all finished instrn rd_value until this instrn is commited
+
+#### here's why don't include function definition in header file
+say you have cpu_base public for all sub-modules in cpu module
+when you have a function definition in cpu_base.h
+and because you include cpu_base.h in many cpu sub-modules
+when cpu sub-module links, links would complain that you have duplicate symbols,
+meaning you have multiply the same function definitions
+don't definition functions in header files, even for operator< function
+
+#### don't use malloc and C++ class together
+this is kind of annoying when convert C code to C++
+C Styple
+```C
+  My* pMy = (My*)malloc(sizeof(My));
+  if(pMy != NULL){
+    My_init(pMy);
+  }
+```
+
+C++ style
+```c++
+  My* pMy = new My(); // initial is done
+```
+
+and when you have std::set in C struct, and use using malloc to allocate space,
+then std::set is not initial correctly
+
+this is a real mix of C and C++ style,
+get the reference of a object and then get the addr of it as a pointer
+```cpp
+  for(auto& i: cpu->lsq.entry){
+    if(strcmp(i.opcode, "STORE")==0)
+      LSQ_STORE_fetchValue(cpu, &i);
+  }
+```
+
+now I think useing memset to initial data is a bad idea, shouldn't save energy there
+
+learn somthing about deque
+// iterator could ++, --
+auto it = deque.begin() // iterator
+auto it = deque.end() // iterator
+// reference
+auto& ref = deque.front()
+auto& ref = deque.back()

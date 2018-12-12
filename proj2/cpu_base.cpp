@@ -181,7 +181,6 @@ void print_ROB(ROB_t* stage){
   }
   for(auto& i: stage->entry){
     printf("%15s: pc(%04d,%03d,%1d) ", "ROB ",  i.pc, i.dispatch_cycle, i.cfid);
-    // TODO: ??
     print_instruction(&i);
     printf(" %s", i.completed==VALID ? "COMPLETE" : "");
     printf("\n");
@@ -290,17 +289,18 @@ void print_all_stage(CPU_Stage* stages){
 
 /* new */
 void print_all_stage(APEX_CPU* cpu){
-  print_ROB(&cpu->rob); printf("\n");
-
+  print_ROB(&cpu->rob);
+  printf("''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''\n");
   print_MEM(&cpu->mem);
-  print_LSQ(&cpu->lsq); printf("\n");
-
+  print_LSQ(&cpu->lsq);
+  printf("''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''\n");
   print_intFU(&cpu->intFU);
   print_mulFU(&cpu->mulFU);
-  print_IQ(&cpu->iq); printf("\n");
-
+  print_IQ(&cpu->iq);
+  printf("''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''\n");
   print_DRD(&cpu->drd);
   print_Fetch_stage(&cpu->fetch_stage);
+  printf("''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''\n");
 }
 
 /* old */
@@ -371,7 +371,6 @@ int Fetch_stage_init(Fetch_t* stage){
 }
 
 int DRD_init(DRD_t* stage){
-  // stage_base_init(&stage->latch);
   stage_base_init(&stage->entry);
   stage->busy = BUSY_INITIAL;
   stage->stalled = UNSTALLED;
@@ -418,6 +417,7 @@ int MEM_init(MEM_t* stage){
 }
 
 int LSQ_init(LSQ_t* stage){
+  // std::deque take care of itself
   stage->busy = BUSY_INITIAL;
   stage->stalled = UNSTALLED;
   return 0;
@@ -437,10 +437,13 @@ int CFID_init(APEX_CPU* cpu){
     memset(cpu->cfid_arr[i].urf_valid_bak, 0xFF, sizeof(cpu->cfid_arr[i].urf_valid_bak));
   }
   cpu->cfio.push_back(0);
-
   return 0;
 }
 
+int BC_init(APEX_CPU* ){
+  // cpu->broadcast.entry.set(); // std::set take care of itself when you use new instead of malloc
+  return 0;
+}
 
 /* have some basic function here */
 /* old */
@@ -465,13 +468,19 @@ int setStagetoNOP(CPU_Stage_base* entry){
   return 0;
 }
 
+/* Broadcast functions */
+bool operator<(const Broadcast_base& lhl, const Broadcast_base& lhr){
+  return lhl.tag < lhr.tag;
+}
+
 /*
  * fetch data for rs1 and rs2 from intFU, mulFU, mem, ROB
  * work for DRD or IQ stage
  * and set readyforIssue flags when it got all src value
  */
 int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
-  int failed = INVALID;
+  int failed1 = INVALID;
+  int failed2 = INVALID;
   /* fetch rs1_value if its needed and haven't been fetched */
   if(entry->rs1 != UNUSED_REG_INDEX && entry->rs1_value_valid==INVALID){
     /* lastest instance could in ROB or
@@ -480,24 +489,14 @@ int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
       entry->rs1_value = cpu->urf[entry->rs1_tag];
       entry->rs1_value_valid = VALID;
     }
-    /* lastest instance could in intFU, and just finish calulation */
-    else if(entry->rs1_tag == cpu->broadcast.tag_intFU){
-      entry->rs1_value = cpu->broadcast.data_intFU;
+    /* lastest instance has got result */
+    else if(cpu->broadcast.entry.find(Broadcast_base(entry->rs1_tag, 0x0)) != cpu->broadcast.entry.end()){
+      entry->rs1_value = cpu->broadcast.entry.find(Broadcast_base{entry->rs1_tag, 0x0})->data;
       entry->rs1_value_valid = VALID;
     }
-    /* lastest instance could in mulFU, and just finish calulation */
-    else if(entry->rs1_tag == cpu->broadcast.tag_mulFU){
-      entry->rs1_value = cpu->broadcast.data_mulFU;
-      entry->rs1_value_valid = VALID;
-    }
-    /* lastest instance could in mem, and just finish calulation */
-    else if(entry->rs1_tag == cpu->broadcast.tag_mem){
-      entry->rs1_value = cpu->broadcast.data_mem;
-      entry->rs1_value_valid = VALID;
-    }
-    /* lastest instance could in IQ, then don't copy data */
+    /* lastest instance could in IQ or didn't get result, then don't copy data */
     else{
-      failed = VALID;
+      failed1 = VALID;
     }
   }
   /* the same for rs2 */
@@ -507,26 +506,17 @@ int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
       entry->rs2_value = cpu->urf[entry->rs2_tag];
       entry->rs2_value_valid = VALID;
     }
-    /* lastest instance could in intFU, and just finish calulation */
-    else if(entry->rs2_tag == cpu->broadcast.tag_intFU){
-      entry->rs2_value = cpu->broadcast.data_intFU;
-      entry->rs2_value_valid = VALID;
-    }
-    /* lastest instance could in mulFU, and just finish calulation */
-    else if(entry->rs2_tag == cpu->broadcast.tag_mulFU){
-      entry->rs2_value = cpu->broadcast.data_mulFU;
-      entry->rs2_value_valid = VALID;
-    }
-    /* lastest instance could in mem, and just finish calulation */
-    else if(entry->rs2_tag == cpu->broadcast.tag_mem){
-      entry->rs2_value = cpu->broadcast.data_mem;
+    /* lastest instance has got result */
+    else if(cpu->broadcast.entry.find(Broadcast_base(entry->rs2_tag, 0x0)) != cpu->broadcast.entry.end()){
+      entry->rs2_value = cpu->broadcast.entry.find(Broadcast_base{entry->rs2_tag, 0x0})->data;
       entry->rs2_value_valid = VALID;
     }
     /* lastest instance could in IQ, then don't copy data */
     else{
-      failed = VALID;
+      failed2 = VALID;
     }
   }
+  /* set readyforIssue */
   /* BZ and BNZ readyforIssue bits is dependent on last arithmetic instrn */
   if(strcmp(entry->opcode, "BZ")==0 &&
       strcmp(entry->opcode, "BNZ")==0
@@ -535,14 +525,45 @@ int fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
       entry->readyforIssue = VALID;
     }
   }
+  /* STORE R1 R2 #3 only need R2 for readyforIssue */
+  else if(strcmp(entry->opcode, "STORE")==0){
+    if(failed2 == INVALID ){
+      entry->readyforIssue = VALID;
+    }
+  }
   /* if got all rs_values or never need one, set readyforIssue */
-  /* JUMP and JAL is readyforIssue when it gets resource, like other instrns
-   */
-  else if(failed == INVALID){
+  /* JUMP and JAL is readyforIssue when it gets resource, like other instrns */
+  else if(failed1 == INVALID && failed2 == INVALID){
     entry->readyforIssue = VALID;
   }
   // these are not readyforIssue
   else{
+  }
+  return 0;
+}
+
+/* used for LSQ STORE entry to fetch R1 value, and
+ * intFU(STORE)->LSQ is only addr and adrr_valid */
+int LSQ_STORE_fetchValue(APEX_CPU* cpu, CPU_Stage_base* entry){
+  assert(strcmp(entry->opcode, "STORE")==0);
+  assert(entry->rs1 != UNUSED_REG_INDEX);
+  // int failed1 = INVALID;
+  /* fetch rs1_value if its needed and haven't been fetched */
+  if(entry->rs1_value_valid==INVALID){
+    /* lastest instance could in commited value to urf and r_rat[rs1] point to it*/
+    if(entry->rs1_tag == cpu->r_rat[entry->rs1]){
+      entry->rs1_value = cpu->urf[entry->rs1_tag];
+      entry->rs1_value_valid = VALID;
+    }
+    /* lastest instance has got result */
+    else if(cpu->broadcast.entry.find(Broadcast_base(entry->rs1_tag, 0x0)) != cpu->broadcast.entry.end()){
+      entry->rs1_value = cpu->broadcast.entry.find(Broadcast_base{entry->rs1_tag, 0x0})->data;
+      entry->rs1_value_valid = VALID;
+    }
+    /* lastest instance could in IQ or didn't get result, then don't copy data */
+    else{
+      // failed1 = VALID;
+    }
   }
   return 0;
 }
@@ -807,7 +828,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
       return SUCCEED;
     }
   }
-  /* intFU->broadcast, intFU->ROB */
+  /* intFU->broadcast, intFU->ROB or intFU->LSQ */
   else if(stage_num == intFU){
     IntFU_t* stage = &cpu->intFU;
     /* LOAD or STORE, intFU->LSQ */
@@ -817,10 +838,24 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
       CPU_Stage_base* LSQ_entry_ptr = LSQ_searchEntry(cpu, stage->entry.dispatch_cycle);
       if(LSQ_entry_ptr!=NULL){
         assert(stage->entry.mem_address_valid == VALID);
-        *LSQ_entry_ptr = stage->entry;
+        // *LSQ_entry_ptr = stage->entry;
+        // don't wanna overwrite LSQ_entry's R1 value and valid bit
+        // copy IQ changes
+        LSQ_entry_ptr->valid = stage->entry.valid;
+        LSQ_entry_ptr->readyforIssue = stage->entry.readyforIssue;
+        LSQ_entry_ptr->rs2_value = stage->entry.rs2_value;
+        LSQ_entry_ptr->rs2_value_valid = stage->entry.rs2_value_valid;
+        // copy intFU changes
+        LSQ_entry_ptr->mem_address = stage->entry.mem_address;
+        LSQ_entry_ptr->mem_address_valid = stage->entry.mem_address_valid;
       }
+      else {
+        fprintf(stderr, "can't find the Entry in LSQ\n");
+        assert(0);
+      }
+      return SUCCEED;
     }
-    /* other instrn */
+    /* other instrn-> ROB and broadcast */
     else{
       /* intFU->ROB, set ROB entry buffer and valid bit */
       CPU_Stage_base* ROB_entry_ptr = ROB_searchEntry(cpu, stage->entry.dispatch_cycle);
@@ -836,9 +871,9 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
       if(stage->entry.rd != UNUSED_REG_INDEX){
         assert(stage->entry.rd_tag != UNUSED_REG_INDEX);
         assert(stage->entry.buffer_valid == VALID);
-        cpu->broadcast.data_intFU = stage->entry.buffer;
-        cpu->broadcast.tag_intFU = stage->entry.rd_tag;
+        cpu->broadcast.entry.insert(Broadcast_base(stage->entry.rd_tag, stage->entry.buffer));
       }
+      return SUCCEED;
     }
   }
   /* mulFU->broadcast, mulFU->ROB */
@@ -850,13 +885,17 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
       stage->entry.completed = VALID;
       *ROB_entry_ptr = stage->entry;
     }
+    else {
+      fprintf(stderr, "can't find the Entry in LSQ\n");
+      assert(0);
+    }
     /* copy to cpu->broadcast */
     if(stage->entry.rd != UNUSED_REG_INDEX){
       assert(stage->entry.rd_tag != UNUSED_REG_INDEX);
       assert(stage->entry.buffer_valid == VALID);
-      cpu->broadcast.data_mulFU = stage->entry.buffer;
-      cpu->broadcast.tag_mulFU = stage->entry.rd_tag;
+      cpu->broadcast.entry.insert(Broadcast_base(stage->entry.rd_tag, stage->entry.buffer));
     }
+    return SUCCEED;
   }
   /* LSQ->MEM */
   else if(stage_num == LSQ){
@@ -870,9 +909,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
     }
     nextStage->entry= it;
     nextStage->busy = BUSY_NEW;
-    stage->entry.pop_front();
     return SUCCEED;
-
   }
   /* MEM->ROB, MEM->broadcast */
   else if(stage_num == MEM ){
@@ -891,8 +928,7 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
     if(stage->entry.rd != UNUSED_REG_INDEX){
       assert(stage->entry.rd_tag != UNUSED_REG_INDEX);
       assert(stage->entry.buffer_valid == VALID);
-      cpu->broadcast.data_mem = stage->entry.buffer;
-      cpu->broadcast.tag_mem = stage->entry.rd_tag;
+      cpu->broadcast.entry.insert(Broadcast_base(stage->entry.rd_tag, stage->entry.buffer));
     }
     return SUCCEED;
   }
@@ -901,6 +937,5 @@ int copyStagetoNext(APEX_CPU* cpu, int stage_num, int index){
     fprintf(stderr, "should reach here\n");
     assert(0);
   }
-
-  return 0;
+  return FAILED;
 }
