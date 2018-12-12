@@ -269,10 +269,13 @@ DRD_run(APEX_CPU* cpu)
     /* fetch and set readyforIssue flag */
     fetchValue(cpu, &stage->entry);
     /* renaming Rd, set up new most recently tag */
-    if(stage->entry.rd != UNUSED_REG_INDEX){
+    if(stage->entry.rd != UNUSED_REG_INDEX &&
+        stage->entry.rd_tag == UNUSED_REG_INDEX
+      ){
       int urf_index = URF_getValidIndex(cpu);
       if(urf_index == FAILED){
         stage->stalled = STALLED;
+        stage->busy = BUSY_DEFAULT;
         return 0;
       }
       cpu->rat[stage->entry.rd] = urf_index;
@@ -305,6 +308,7 @@ DRD_run(APEX_CPU* cpu)
       if(new_cfid==FAILED){
         // TODO: stall DRD stage, is it correct way to do so?? need to restore resources
         stage->stalled = STALLED;
+        stage->busy = BUSY_DEFAULT;
         return 0;
       }
       cpu->cfid_arr[new_cfid].valid = INVALID;
@@ -332,6 +336,7 @@ DRD_run(APEX_CPU* cpu)
   /* forward failed */
   if(isForwarded == FAILED){
     stage->stalled = STALLED;
+    // stage->busy= BUSY_DONE; // check so next circle wouldn't reallocate resources
   }
   /* forward success, wait last stage to push new data */
   else{
