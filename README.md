@@ -276,3 +276,5 @@ O Flynn's taxonomy
 15 T/F question
 question II
 question III
+
+good trick to use sftp to remote
